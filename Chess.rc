@@ -1,0 +1,119 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// 101
+//
+
+IDB_PNG1                101                     "resources\\draw.png"
+
+IDB_PNG2                101                     "resources\\draw_v.png"
+
+IDB_PNG3                101                     "resources\\draw_x.png"
+
+IDB_PNG4                101                     "resources\\resign.png"
+
+IDB_PNG5                101                     "resources\\pieces\\b0.png"
+
+IDB_PNG6                101                     "resources\\pieces\\b1.png"
+
+IDB_PNG7                101                     "resources\\pieces\\k0.png"
+
+IDB_PNG8                101                     "resources\\pieces\\k1.png"
+
+IDB_PNG9                101                     "resources\\pieces\\n0.png"
+
+IDB_PNG10               101                     "resources\\pieces\\n1.png"
+
+IDB_PNG11               101                     "resources\\pieces\\p0.png"
+
+IDB_PNG12               101                     "resources\\pieces\\p1.png"
+
+IDB_PNG13               101                     "resources\\pieces\\q0.png"
+
+IDB_PNG14               101                     "resources\\pieces\\q1.png"
+
+IDB_PNG15               101                     "resources\\pieces\\r0.png"
+
+IDB_PNG16               101                     "resources\\pieces\\r1.png"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// 102
+//
+
+IDR_TTF1                102                     "resources\\DejaVuSansMono.ttf"
+
+IDR_TTF2                102                     "resources\\Helvetica.ttf"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+MAINICON               ICON                    "resources\\icon.ico"
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
