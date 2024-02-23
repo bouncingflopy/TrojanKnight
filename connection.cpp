@@ -4,46 +4,30 @@
 
 using namespace std;
 
-Connection::Connection(int mp, string ri, int rp, int time) : my_port(mp), remote_ip(ri), remote_port(rp) {
+Connection::Connection(string i, int p, int d) : ip(i), port(p), id(d) {
 	asio::io_context::work idleWork(context);
-	local_endpoint = asio::ip::tcp::endpoint(asio::ip::tcp::v4(), my_port);
 	context_thread = thread([&]() {context.run();});
-	
-	thread server_thread([this]() {serverThread();});
-	thread client_thread([this]() {clientThread();});
 
-	for (int i = 0; i < time; i++) {
-		if (connected) break;
-		this_thread::sleep_for(1s);
-	} // make all timers async
+	socket = new asio::ip::udp::socket(context);
+	socket->open(asio::ip::udp::v4());
 
-	force_close = true;
-	server_thread.join(); // what if both at same time
-	client_thread.join();
-
-	if (connected) {
-		if (socket == server_socket) client_socket->close();
-		else server_socket->close();
-
-		asyncReadData();
-		cout << "connected to " << ri << endl; // debug
-	}
+	asio::ip::udp::endpoint e = asio::ip::udp::endpoint(asio::ip::make_address(ip), port);
+	connect(e);
 }
 
-void Connection::close() {
+Connection::~Connection() {
 	context.stop();
 	context_thread.join();
 
-	client_socket->close();
-	server_socket->close();
+	if (socket->is_open()) socket->close();
+	delete socket;
 }
 
 void Connection::asyncReadData() {
-	socket->async_read_some(asio::buffer(read_buffer.data(), read_buffer.size()),
+	socket->async_receive_from(asio::buffer(read_buffer.data(), read_buffer.size()), endpoint,
 		[&](error_code ec, size_t length) {
 			if (!ec) {
 				incoming_messages.push(string(read_buffer.begin(), read_buffer.begin() + length));
-				// if doesnt start with pnp, concate to last message
 				asyncReadData();
 			}
 		}
@@ -51,46 +35,63 @@ void Connection::asyncReadData() {
 }
 
 void Connection::writeData(string data) {
-	socket->write_some(asio::buffer(data.data(), data.size()));
+	socket->send_to(asio::buffer(data.data(), data.size()), endpoint);
 }
 
-void Connection::serverThread() {
-	server_socket = new asio::ip::tcp::socket(context);
+void Connection::connect(asio::ip::udp::endpoint e) {
+	connected = false;
+	socket->cancel();
 
-	asio::ip::tcp::acceptor acceptor = asio::ip::tcp::acceptor(context, local_endpoint);
+	endpoint = e;
 
-	acceptor.async_accept(*server_socket,
-		[&](asio::error_code ec) {
+	asio::error_code ec;
+	socket->connect(endpoint, ec); // might not need this, check if holepunching works, but need connect bool
+
+	if (ec) {
+		cout << ec << endl;
+	}
+	else {
+		connected = true;
+		keepalive = chrono::high_resolution_clock::now();
+		asyncReadData();
+	}
+}
+
+void Connection::change(string i, int p, int d) {
+	ip = i;
+	port = p;
+	id = d;
+
+	asio::ip::udp::endpoint e = asio::ip::udp::endpoint(asio::ip::make_address(ip), port);
+	connect(e);
+}
+
+OpenConnection::OpenConnection() {
+	asio::io_context::work idleWork(context);
+	context_thread = thread([&]() {context.run();});
+
+	local_endpoint = asio::ip::udp::endpoint(asio::ip::udp::v4(), ROOT_PORT);
+	socket = new asio::ip::udp::socket(context, local_endpoint);
+
+	asyncReceive();
+}
+
+void OpenConnection::writeData(asio::ip::udp::endpoint endpoint, string data) {
+	socket->send_to(asio::buffer(data.data(), data.size()), endpoint);
+}
+
+void OpenConnection::asyncReceive() {
+	asio::ip::udp::endpoint* endpoint = new asio::ip::udp::endpoint();
+	socket->async_receive_from(asio::buffer(read_buffer.data(), read_buffer.size()), *endpoint,
+		[&](error_code ec, size_t length) {
 			if (!ec) {
-				socket = server_socket;
-				connected = true;
+				Message message;
+				message.endpoint = *endpoint;
+				message.message = string(read_buffer.begin(), read_buffer.begin() + length);
+
+				incoming_messages.push(message);
 			}
-		}
-	);
 
-	while (!connected && !force_close) {
-		this_thread::sleep_for(chrono::milliseconds(TCP_HOLEPUNCHING_FREQUENCY));
-	}
-}
-
-void Connection::clientThread() {
-	client_socket = new asio::ip::tcp::socket(context);
-	client_socket->open(asio::ip::tcp::v4());
-	client_socket->set_option(asio::socket_base::reuse_address(true));
-	client_socket->bind(local_endpoint);
-
-	asio::ip::tcp::endpoint endpoint(asio::ip::make_address(remote_ip), remote_port);
-
-	while (!connected && !force_close) {
-		client_socket->async_connect(endpoint,
-			[&](asio::error_code ec) {
-				if (!ec) {
-					socket = client_socket;
-					connected = true;
-				}
-			}
-		);
-
-		this_thread::sleep_for(chrono::milliseconds(TCP_HOLEPUNCHING_FREQUENCY));
-	}
+			asyncReceive();
+		});
 }

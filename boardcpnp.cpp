@@ -56,6 +56,10 @@ void Board::decodeCPNP(string message) {
 		string temp;
 		while (getline(stream, temp, ' ')) words.push_back(temp);
 
+		if (words[0] == "cpnp") {
+			continue;
+		}
+
 		if (words[0] == "move") {
 			Move* move = NULL;
 
@@ -147,7 +151,7 @@ void Board::decodeCPNP(string message) {
 			else if (words[1] == "sync") endGame(error_sync);
 		}
 	}
-}
+} // make classes into structs eg move but not tile
 
 /*
 
@@ -155,19 +159,20 @@ pnp
 	chess offer white rapid
 	chess accept
 	chess reject
-	cpnp
-		timer dynamic 147 837
-		timer start 132 837
-		timer stop 104 837
-		timer timeout
-		move e7 e8 queen
-		draw accept
-		draw offer
-		draw cancel
-		resign
-		error move
-		error timer
-		error sync
+
+cpnp
+	timer dynamic 147 837
+	timer start 132 837
+	timer stop 104 837
+	timer timeout
+	move e7 e8 queen
+	draw accept
+	draw offer
+	draw cancel
+	resign
+	error move
+	error timer
+	error sync
 
 */
 

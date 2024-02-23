@@ -18,32 +18,49 @@
 #include "node.h"
 
 using namespace std;
-typedef std::basic_string<char> string;
 
 class Node;
 
 class Connection {
 public:
-	int my_port;
-	string remote_ip;
-	int remote_port;
+	int id;
+	string ip;
+	int port;
 	bool connected = false;
-	bool force_close = false;
+	asio::ip::udp::socket* socket;
+	asio::ip::udp::endpoint endpoint;
 	asio::io_context context;
 	thread context_thread;
-	asio::ip::tcp::socket* socket;
-	asio::ip::tcp::socket* client_socket;
-	asio::ip::tcp::socket* server_socket;
-	asio::ip::tcp::endpoint local_endpoint;
 	vector<char> read_buffer = vector<char>(1024);
 	queue<string> incoming_messages;
+	time_point keepalive;
 
-	Connection(int mp, string ri, int rp, int time);
-	void close();
+	Connection();
+	Connection(string i, int p, int id);
+	~Connection();
 	void asyncReadData();
 	void writeData(string data);
-	void serverThread();
-	void clientThread();
+	void connect(asio::ip::udp::endpoint e);
+	void change(string i, int p, int id);
+};
+
+struct Message {
+	asio::ip::udp::endpoint endpoint;
+	string message;
+};
+
+class OpenConnection {
+public:
+	asio::ip::udp::endpoint local_endpoint;
+	asio::ip::udp::socket* socket;
+	asio::io_context context;
+	thread context_thread;
+	vector<char> read_buffer = vector<char>(1024);
+	queue<Message> incoming_messages;
+
+	OpenConnection();
+	void writeData(asio::ip::udp::endpoint endpoint, string data);
+	void asyncReceive();
 };
 
 #endif
