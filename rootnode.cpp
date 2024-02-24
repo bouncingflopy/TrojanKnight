@@ -5,12 +5,12 @@ using namespace std;
 
 RootNode::RootNode(Node* n) : node(n) {
 	admin = new OpenConnection();
-	handle_thread = thread(&handleThread);
+	handle_thread = thread(&RootNode::handleThread, this);
 
 	if (node->connections.size() == 0) createDHT();
 	else overtakeDHT();
 
-	detached_thread = thread(&detachedCheck);
+	detached_thread = thread(&RootNode::detachedCheck, this);
 
 	cout << "i am root" << endl;
 }
@@ -21,7 +21,9 @@ void RootNode::handleThread() {
 			Message message = admin->incoming_messages.front();
 			admin->incoming_messages.pop();
 
-			cout << "new message from socket " << message.endpoint.address().to_string() << "::" << message.endpoint.port() << ": " << message.message << endl;
+			cout << "###############################################" << endl;
+			cout << "new message from endpoint " << message.endpoint.address().to_string() << "::" << message.endpoint.port() << ":\n" << message.message << endl;
+			cout << "###############################################" << endl;
 			handleMessage(message);
 		}
 
@@ -48,10 +50,7 @@ void RootNode::changedDHT() { // implement sending only dht changes when broadca
 	if (dht.version == 1000) dht.version = 1;
 
 	string broadcast = "pnp\nbroadcast\ndht\n" + dht.toString();
-
-	for (Connection* connection : node->connections) {
-		connection->writeData(broadcast);
-	}
+	node->handleMessage(broadcast);
 } // dont only send changes if reroot, send whole thing with root node first
 
 void RootNode::holepunchConnect(asio::ip::udp::endpoint a_endpoint, asio::ip::udp::endpoint b_endpoint, int a_id, int b_id) {
@@ -91,22 +90,36 @@ void RootNode::detachedCheck() {
 			}
 		}
 
-		for (DHTNode bad_node : bad_nodes) {
-			dht.deleteNode(bad_node);
+		if (bad_nodes.size() > 0) {
+			for (DHTNode bad_node : bad_nodes) {
+				dht.deleteNode(bad_node);
+			}
+			changedDHT();
 		}
-		changedDHT();
 
 		this_thread::sleep_for(chrono::seconds(DETACHED_CHECK_FREQUENCY));
 	}
 }
 
 void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint, int target_id) {
-	int port = 13371 + node->connections.size(); // implement vector of used ports
-	
+	int port;
+	if (!port_use[0]) {
+		port = ROOT_PORT + 1;
+		port_use[0] = true;
+	}
+	else if (!port_use[1]) {
+		port = ROOT_PORT + 2;
+		port_use[1] = true;
+	}
+	else {
+		port = ROOT_PORT + 3;
+		port_use[2] = true;
+	}
+
 	string message = "pnp\npunchhole info " + to_string(node->id) + " " + dht.nodes[0].ip + " " + to_string(port);
 	admin->writeData(target_endpoint, message);
 
-	Connection* connection = new Connection(target_endpoint.address().to_string(), target_endpoint.port(), target_id);
+	Connection* connection = new Connection(target_endpoint.address().to_string(), target_endpoint.port(), target_id, port);
 	
 	if (connection->connected) {
 		node->connections.push_back(connection);
@@ -115,7 +128,6 @@ void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint,
 		if (dht.addConnection(dht_connection)) changedDHT();
 	}
 }
-// dont forget to copy in pnp.cpp
 
 PunchholePair::PunchholePair(int a, int b) : a(a), b(b) {}
 

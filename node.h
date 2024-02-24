@@ -14,6 +14,7 @@ class RootNode;
 struct DHT;
 struct Message;
 struct RelaySession;
+struct PunchholePair;
 
 class Node {
 public:
@@ -27,6 +28,7 @@ public:
 	thread keepalive_thread;
 	thread lookout_thread;
 	thread reroot_thread;
+	thread punchhole_thread;
 	DHT dht;
 	vector<RelaySession> relay_sessions;
 	int session_counter = 0;
@@ -40,7 +42,8 @@ public:
 	void connect();
 	void handleThread();
 	void handleMessage(Connection* connection, string message);
-	void handleMessage(RelaySession relay, Connection* connection, string message);
+	void handleMessage(RelaySession relay_session, Connection* connection, string message);
+	void handleMessage(string message);
 	int pickNodeToConnect();
 	void manageConnections();
 	void rerootCheck();
@@ -108,11 +111,15 @@ v	disconnect 1
 /*
 
 keepalive
+syn
+ack
 
 */
 
 // delete all pointers when closing program
 // make chess board size based on computer size
+// endcryption public key private key
+// detach thread?
 
 class RootNode {
 public:
@@ -122,6 +129,7 @@ public:
 	thread detached_thread;
 	DHT dht;
 	vector<PunchholePair> punchhole_pairs;
+	vector<bool> port_use = {false, false, false};
 
 	RootNode(Node* n);
 	void createDHT();
@@ -129,7 +137,7 @@ public:
 	void handleThread();
 	void handleMessage(Message message);
 	void handleMessage(Connection* connection, string message);
-	void handleMessage(RelaySession relay, Connection* connection, string message);
+	void handleMessage(RelaySession relay_session, Connection* connection, string message);
 	void changedDHT();
 	void holepunchConnect(asio::ip::udp::endpoint a_endpoint, asio::ip::udp::endpoint b_endpoint, int a_id, int b_id);
 	void detachedCheck();

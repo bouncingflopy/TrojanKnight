@@ -51,9 +51,9 @@ Node::Node() {
 		connect();
 	}
 
-	handle_thread = thread(&handleThread);
-	keepalive_thread = thread(&keepalive);
-	lookout_thread = thread(&lookout);
+	handle_thread = thread(&Node::handleThread, this);
+	keepalive_thread = thread(&Node::keepalive, this);
+	lookout_thread = thread(&Node::lookout, this);
 
 	cout << "finished node init" << endl;
 }
@@ -160,7 +160,9 @@ void Node::handleThread() {
 				rootConnection->incoming_messages.pop();
 
 				// handle message
-				cout << "new message from root connection " << rootConnection << ": " << message << endl;
+				cout << "###############################################" << endl;
+				cout << "new message from root connection " << rootConnection << ":\n" << message << endl;
+				cout << "###############################################" << endl;
 				handleMessage(rootConnection, message);
 			}
 
@@ -169,7 +171,9 @@ void Node::handleThread() {
 				connection->incoming_messages.pop();
 
 				// handle message
-				cout << "new message from connection " << connection << ": " << message << endl;
+				cout << "###############################################" << endl;
+				cout << "new message from connection " << connection << ":\n" << message << endl;
+				cout << "###############################################" << endl;
 				handleMessage(connection, message);
 			}
 		}
@@ -209,7 +213,7 @@ int Node::pickNodeToConnect() {
 		}
 	}
 
-	if (nodes.size() == 0) return dht.nodes[0].id;
+	if (nodes.size() == 0) return dht.nodes[0].id; // shouldnt ever happen
 
 	random_device rd;
 	mt19937 gen(rd());
@@ -252,9 +256,10 @@ void Node::manageConnections() {
 
 void Node::rerootCheck() {
 	is_reroot = true;
+	cout << "starting reroot check" << endl;
 
 	while (dht.nodes.size() >= 2 && dht.nodes[1].id == id) {
-		Connection connection = Connection(dht.nodes[0].ip, ROOT_PORT, dht.nodes[0].id);
+		Connection connection(dht.nodes[0].ip, ROOT_PORT, dht.nodes[0].id);
 		
 		if (!connection.connected) {
 			vector<int> root_connections;
@@ -284,6 +289,7 @@ void Node::rerootCheck() {
 		this_thread::sleep_for(chrono::seconds(REROOT_CHECK_FREQUENCY));
 	}
 
+	cout << "ending reroot check" << endl;
 	is_reroot = false;
 }
 
@@ -347,7 +353,7 @@ bool Node::connectToRoot() {
 	if (rootConnection) return true;
 	
 	string root = getDDNS();
-	rootConnection = new Connection(root, ROOT_PORT, dht.nodes[0].id);
+	rootConnection = new Connection(root, ROOT_PORT, 0);
 
 	if (rootConnection->connected) {
 		cout << "connected to root" << endl;
@@ -369,19 +375,18 @@ void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
 
 	connection->change(target_ip, target_port, target_id);
 
-	// add a spamming for holepunching, maybe with a socket->connect() loop in connect(),
-	// or remove socket->connect() and spam here with message "holepunch"
-	// what about delays in connecting to root, spam in connect()
-
 	if (connection->connected) {
-		connections.push_back(connection);
-
 		DHTConnection dht_connection = DHTConnection(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
 		dht.addConnection(dht_connection);
 
 		string message = "rpnp\dht connect " + to_string(id) + " " + to_string(target_id);
 		relay(dht.nodes[0].id, message);
 	}
+	else {
+		delete connection;
+	}
+
+	manageConnections();
 }
 
 vector<int> Node::findPathToRoot() {
@@ -487,7 +492,7 @@ void Node::relay(int target_id, string payload) {
 
 void Node::disconnect(int target_id) {
 	string message = "pnp\ndisconnect " + to_string(id);
-	Connection* connection;
+	Connection* connection = nullptr;
 
 	for (int i = 0; i < connections.size(); i++) {
 		if (connections[i]->id == target_id) {
@@ -501,9 +506,19 @@ void Node::disconnect(int target_id) {
 
 	DHTConnection dht_connection = DHTConnection(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
 	dht.deleteConnection(dht_connection);
+	
+	if (dht.getNodeFromId(id)->connections.size() > 0) {
+		message = "rpnp\dht disconnect " + to_string(id) + " " + to_string(target_id);
+		relay(dht.nodes[0].id, message);
+	}
 
-	message = "rpnp\dht disconnect " + to_string(id) + " " + to_string(target_id);
-	relay(dht.nodes[0].id, message);
+	if (is_root && connection) {
+		int port = connection->socket->local_endpoint().port();
+		port -= ROOT_PORT + 1;
+		if (port > 2) port = 2;
+
+		root_node->port_use[port] = false;
+	}
 
 	delete connection;
 }

@@ -40,7 +40,6 @@ DHT::DHT(string dht) {
 		
 		a->connections.push_back(&connections[connections.size() - 1]);
 		b->connections.push_back(&connections[connections.size() - 1]);
-
 	}
 }
 

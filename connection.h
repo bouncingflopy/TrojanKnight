@@ -37,9 +37,13 @@ public:
 
 	Connection();
 	Connection(string i, int p, int id);
+	Connection(string i, int p, int id, int my_port);
 	~Connection();
+	bool checkNodeProtocol(string data);
+	void handleConnectionMessage(string data);
 	void asyncReadData();
 	void writeData(string data);
+	void handshake();
 	void connect(asio::ip::udp::endpoint e);
 	void change(string i, int p, int id);
 };
@@ -60,6 +64,8 @@ public:
 
 	OpenConnection();
 	void writeData(asio::ip::udp::endpoint endpoint, string data);
+	bool checkNodeProtocol(string data);
+	void handleConnectionMessage(Message data);
 	void asyncReceive();
 };
 

@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "networksettings.h"
+
 using namespace std;
 
 struct DHTNode;

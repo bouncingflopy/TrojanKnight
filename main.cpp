@@ -48,37 +48,27 @@
 //}
 
 void printConnections(Node* node) {
+    cout << "-------------------------------------------\nCONNECTIONS" << endl;
     for (Connection* connection : node->connections) {
         cout << "connection: " << connection->ip << ":" << connection->port << ", connected? " << (connection->connected ? "yes" : "no") << endl;
     }
+    cout << "-------------------------------------------" << endl;
+}
+
+void printDHT(Node* node) {
+    cout << "**********************************************\nDHT" << endl;
+    cout << node->dht.toString();
+    cout << "**********************************************" << endl;
 }
 
 int main() { // initialize board with connection from node that is the chess connection
     Node* node = new Node();
 
     while (true) {
+        this_thread::sleep_for(chrono::seconds(2));
         printConnections(node);
-        cin >> *(new string());
+        printDHT(node);
     }
-
-    /*thread input_thread([&node]() {
-        string input;
-        while (true) {
-            cin >> input;
-            for (int i = 0; i < node->connections.size(); i++) {
-                node->connections[i]->writeData(input);
-            }
-        }
-    });
-    
-    while (true) {
-        for (int i = 0; i < node->connections.size(); i++) {
-            if (node->connections[i]->incoming_messages.size() > 0) {
-                cout << node->connections[i]->incoming_messages.front();
-                node->connections[i]->incoming_messages.pop();
-            }
-        }
-    }*/
 
     return 0;
 }
