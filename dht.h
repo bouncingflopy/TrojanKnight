@@ -13,16 +13,16 @@ struct DHTConnection;
 
 struct DHT {
 	int version;
-	vector<DHTNode> nodes;
-	vector<DHTConnection> connections;
+	vector<DHTNode*> nodes;
+	vector<DHTConnection*> connections;
 
 	DHT();
 	DHT(string dht);
 	string toString();
-	bool addNode(DHTNode node);
-	bool addConnection(DHTConnection connection);
-	bool deleteNode(DHTNode node);
-	bool deleteConnection(DHTConnection connection);
+	bool addNode(DHTNode* node);
+	bool addConnection(DHTConnection* connection);
+	bool deleteNode(int id);
+	bool deleteConnection(DHTConnection* connection); // needed?
 	DHTNode* getNodeFromId(int id);
 	int getFreeId();
 	void calculateLevels();

@@ -22,7 +22,7 @@ DHT::DHT(string dht) {
 		string temp;
 		while (getline(stream, temp, ' ')) words.push_back(temp);
 
-		DHTNode node = DHTNode(stoi(words[0]), stoi(words[1]), words[2]);
+		DHTNode* node = new DHTNode(stoi(words[0]), stoi(words[1]), words[2]);
 		nodes.push_back(node);
 	}
 
@@ -33,13 +33,13 @@ DHT::DHT(string dht) {
 		while (getline(stream, temp, ' ')) words.push_back(temp);
 
 		DHTNode* a = getNodeFromId(stoi(words[0]));
-		DHTNode* b = getNodeFromId(stoi(words[0]));
+		DHTNode* b = getNodeFromId(stoi(words[1]));
 
-		DHTConnection connection = DHTConnection(a, b);
+		DHTConnection* connection = new DHTConnection(a, b);
 		connections.push_back(connection);
 		
-		a->connections.push_back(&connections[connections.size() - 1]);
-		b->connections.push_back(&connections[connections.size() - 1]);
+		a->connections.push_back(connection);
+		b->connections.push_back(connection);
 	}
 }
 
@@ -48,21 +48,21 @@ string DHT::toString() {
 	
 	dht += to_string(version) + "\n-\n";
 
-	for (DHTNode node : nodes) {
-		dht += to_string(node.id) + " " + to_string(node.level) + " " + node.ip + "\n";
+	for (DHTNode* node : nodes) {
+		dht += to_string(node->id) + " " + to_string(node->level) + " " + node->ip + "\n";
 	}
 	dht += "-\n";
 
-	for (DHTConnection connection : connections) {
-		dht += to_string(connection.a->id) + " " + to_string(connection.b->id) + "\n";
+	for (DHTConnection* connection : connections) {
+		dht += to_string(connection->a->id) + " " + to_string(connection->b->id) + "\n";
 	}
 
 	return dht;
 }
 
-bool DHT::addNode(DHTNode node) {
+bool DHT::addNode(DHTNode* node) {
 	for (int i = 0; i < nodes.size(); i++) {
-		if (node == nodes[i]) {
+		if (*node == *nodes[i]) {
 			return false;
 		}
 	}
@@ -71,27 +71,28 @@ bool DHT::addNode(DHTNode node) {
 	return true;
 }
 
-bool DHT::addConnection(DHTConnection connection) {
+bool DHT::addConnection(DHTConnection* connection) {
 	for (int i = 0; i < connections.size(); i++) {
-		if (connection == connections[i]) {
+		if (*connection == *connections[i]) {
 			return false;
 		}
 	}
 
 	connections.push_back(connection);
 
-	connection.a->connections.push_back(&connections[connections.size() - 1]);
-	connection.b->connections.push_back(&connections[connections.size() - 1]);
+	connection->a->connections.push_back(connection);
+	connection->b->connections.push_back(connection);
 
 	calculateLevels();
+
 	return true;
 }
 
-bool DHT::deleteNode(DHTNode node) {
+bool DHT::deleteNode(int id) {
 	for (int i = 0; i < nodes.size(); i++) {
-		if (node == nodes[i]) {
-			for (DHTConnection* connection : nodes[i].connections) {
-				deleteConnection(*connection);
+		if (id == nodes[i]->id) {
+			for (DHTConnection* connection : nodes[i]->connections) {
+				deleteConnection(connection);
 			}
 
 			nodes.erase(nodes.begin() + i);
@@ -103,18 +104,19 @@ bool DHT::deleteNode(DHTNode node) {
 	return false;
 }
 
-bool DHT::deleteConnection(DHTConnection connection) {
+bool DHT::deleteConnection(DHTConnection* connection) {
 	for (int i = 0; i < connections.size(); i++) {
-		if (connection == connections[i]) {
-			vector<DHTConnection*>* a_connections = &(connections[i].a->connections);
-			vector<DHTConnection*>* b_connections = &(connections[i].b->connections);
+		if (*connection == *connections[i]) {
+			vector<DHTConnection*>* a_connections = &(connections[i]->a->connections);
+			vector<DHTConnection*>* b_connections = &(connections[i]->b->connections);
 
-			a_connections->erase(remove(a_connections->begin(), a_connections->end(), &connections[i]), a_connections->end());
-			b_connections->erase(remove(b_connections->begin(), b_connections->end(), &connections[i]), b_connections->end());
+			a_connections->erase(remove(a_connections->begin(), a_connections->end(), connections[i]), a_connections->end());
+			b_connections->erase(remove(b_connections->begin(), b_connections->end(), connections[i]), b_connections->end());
 
 			connections.erase(connections.begin() + i);
 
 			calculateLevels();
+
 			return true;
 		}
 	}
@@ -123,9 +125,9 @@ bool DHT::deleteConnection(DHTConnection connection) {
 }
 
 DHTNode* DHT::getNodeFromId(int id) {
-	for (DHTNode node : nodes) {
-		if (node.id == id) {
-			return &node;
+	for (int i = 0; i < nodes.size(); i++) {
+		if (nodes[i]->id == id) {
+			return nodes[i];
 		}
 	}
 	
@@ -137,8 +139,8 @@ DHTNode* DHT::getNodeFromId(int id) {
 
 int DHT::getFreeId() {
 	vector<int> ids;
-	for (DHTNode node : nodes) {
-		ids.push_back(node.id);
+	for (DHTNode* node : nodes) {
+		ids.push_back(node->id);
 	}
 
 	sort(ids.begin(), ids.end());
@@ -152,17 +154,19 @@ int DHT::getFreeId() {
 			return available;
 		}
 	}
+
+	return available;
 }
 
 void DHT::calculateLevels() {
-	for (DHTNode node : nodes) {
-		node.level = -1;
+	for (DHTNode* node : nodes) {
+		node->level = -1;
 	}
 
 	queue<DHTNode*> current_queue;
 	queue<DHTNode*> next_queue;
 	int level = 0;
-	current_queue.push(&nodes[0]);
+	current_queue.push(nodes[0]);
 
 	while (!current_queue.empty()) {
 		DHTNode* current_node = current_queue.front();

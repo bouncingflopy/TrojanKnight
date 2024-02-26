@@ -44,14 +44,15 @@ void Node::handleMessage(Connection* connection, string message) {
 				dht = received_dht;
 			}
 
-			if (!is_reroot) reroot_thread = thread(&Node::rerootCheck, this);
+			if (!is_reroot) reroot_thread = new thread(&Node::rerootCheck, this);
+
+			manageConnections();
 
 			break;
 		}
 		else if (words[0] == "joined") {
 			id = stoi(words[1]);
-
-			manageConnections();
+			cout << "joined as " + to_string(id) << endl;
 		}
 		else if (words[0] == "punchhole") {
 			if (words[1] == "fail") {
@@ -61,6 +62,8 @@ void Node::handleMessage(Connection* connection, string message) {
 				manageConnections();
 			}
 			else if (words[1] == "invite") {
+				if (connecting && connecting_id == stoi(words[2])) continue;
+
 				if (rootConnection) {
 					string message = "rpnp\npunchhole fail " + words[2] + " " + to_string(id);
 					rootConnection->writeData(message);
@@ -69,18 +72,19 @@ void Node::handleMessage(Connection* connection, string message) {
 				}
 				else if (!connectToRoot()) {
 					string message = "rpnp\npunchhole fail " + words[2] + " " + to_string(id);
-					relay(dht.nodes[0].id, message);
+					relay(dht.nodes[0]->id, message);
 
 					continue;
 				}
 
-				string message = "rpnp\npunchhole " + words[2] + " " + to_string(id);
+				string message = "rpnp\npunchhole request " + words[2] + " " + to_string(id);
 				rootConnection->writeData(message);
 			}
 			else if (words[1] == "info") {
-				punchhole_thread = thread([this, words]() {
+				thread punchhole_thread([this, words]() {
 					punchholeConnect(words[3], stoi(words[4]), stoi(words[2]));
 					});
+				punchhole_thread.detach();
 			}
 		}
 		else if (words[0] == "success") {
@@ -111,7 +115,7 @@ void Node::handleMessage(Connection* connection, string message) {
 			int my_level = dht.getNodeFromId(id)->level;
 
 			for (Connection* my_connection : connections) {
-				if (my_level > dht.getNodeFromId(my_connection->id)->level) {
+				if (my_level < dht.getNodeFromId(my_connection->id)->level) {
 					my_connection->writeData(rebroadcast);
 				}
 			}
@@ -198,27 +202,26 @@ void RootNode::handleMessage(Message message) {
 
 		if (words[0] == "dht") {
 			if (words[1] == "request") {
-				string response = "pnp\n" + dht.toString();
+				string response = "pnp\ndht\n" + dht.toString();
 				admin->writeData(message.endpoint, response);
 			}
 			else if (words[1] == "join") {
-				DHTNode node = DHTNode();
-				node.id = dht.getFreeId();
-				node.level = -1;
-				node.ip = message.endpoint.address().to_string();
+				DHTNode* node = new DHTNode();
+				node->id = dht.getFreeId();
+				node->level = -1;
+				node->ip = message.endpoint.address().to_string();
 
 				if (dht.addNode(node)) changedDHT();
 
-				string response = "pnp";
-				response += "\njoined " + node.id;
+				string response = "pnp\njoined " + to_string(node->id);
 				admin->writeData(message.endpoint, response);
 			}
 			else if (words[1] == "connect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection connection = DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				DHTConnection* connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
-				if (connection.a->id == -1 || connection.b->id == -1) {
+				if (connection->a->id == -1 || connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
 					admin->writeData(message.endpoint, response);
 
@@ -233,9 +236,9 @@ void RootNode::handleMessage(Message message) {
 			else if (words[1] == "disconnect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection connection = DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				DHTConnection* connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
-				if (connection.a->id == -1 || connection.b->id == -1) {
+				if (connection->a->id == -1 || connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
 					admin->writeData(message.endpoint, response);
 
@@ -248,10 +251,7 @@ void RootNode::handleMessage(Message message) {
 				admin->writeData(message.endpoint, response);
 			}
 			else if (words[1] == "leave") {
-				DHTNode node = DHTNode();
-				node.id = stoi(words[2]);
-
-				if (dht.deleteNode(node)) changedDHT();
+				if (dht.deleteNode(stoi(words[2]))) changedDHT();
 			}
 		}
 		else if (words[0] == "punchhole") {
@@ -274,13 +274,20 @@ void RootNode::handleMessage(Message message) {
 				PunchholePair pair = PunchholePair(stoi(words[2]), stoi(words[3]), message.endpoint);
 
 				if (pair.b == node->id) {
-					simulateHolepunchConnect(pair.requested_endpoint, pair.a);
+					thread punchhole_thread([this, pair]() {
+						simulateHolepunchConnect(pair.requested_endpoint, pair.a);
+						});
+					punchhole_thread.detach();
 					continue;
 				}
 
 				bool waiting = false;
-				for (int i = 0; i < punchhole_pairs.size(); i++) {
-					if (pair == punchhole_pairs[i]) waiting = true;
+				int i;
+				for (i = 0; i < punchhole_pairs.size(); i++) {
+					if (pair == punchhole_pairs[i]) {
+						waiting = true;
+						break;
+					}
 				}
 
 				if (!waiting) {
@@ -290,8 +297,9 @@ void RootNode::handleMessage(Message message) {
 					node->relay(stoi(words[3]), invite);
 				}
 				else {
-					if (pair.requested_endpoint != message.endpoint) {
-						holepunchConnect(pair.requested_endpoint, message.endpoint, pair.a, pair.b);
+					if (pair.requested_endpoint != punchhole_pairs[i].requested_endpoint) {
+						holepunchConnect(pair.requested_endpoint, punchhole_pairs[i].requested_endpoint, pair.a, pair.b);
+						punchhole_pairs.erase(remove(punchhole_pairs.begin(), punchhole_pairs.end(), pair), punchhole_pairs.end());
 					}
 				}
 			}
@@ -356,12 +364,6 @@ void Node::handleMessage(string message) {
 				dht = received_dht;
 			}
 
-			if (!is_reroot && dht.nodes.size() >= 2 && dht.nodes[1].id == id) {
-				cout << "before it" << endl;
-				reroot_thread = std::thread(&Node::rerootCheck, this);
-				cout << "passed it" << endl;
-			}
-
 			break;
 		}
 		else if (words[0] == "broadcast") {
@@ -376,12 +378,9 @@ void Node::handleMessage(string message) {
 			handleMessage(broadcast);
 
 			string rebroadcast = "pnp\nbroadcast\n" + broadcast;
-			int my_level = dht.getNodeFromId(id)->level;
 
 			for (Connection* my_connection : connections) {
-				if (my_level > dht.getNodeFromId(my_connection->id)->level) {
-					my_connection->writeData(rebroadcast);
-				}
+				my_connection->writeData(rebroadcast);
 			}
 
 			break;
@@ -413,9 +412,9 @@ void RootNode::handleMessage(Connection* connection, string message) {
 			else if (words[1] == "connect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection dht_connection = DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
-				if (dht_connection.a->id == -1 || dht_connection.b->id == -1) {
+				if (dht_connection->a->id == -1 || dht_connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
 					connection->writeData(response);
 
@@ -430,9 +429,9 @@ void RootNode::handleMessage(Connection* connection, string message) {
 			else if (words[1] == "disconnect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection dht_connection = DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
-				if (dht_connection.a->id == -1 || dht_connection.b->id == -1) {
+				if (dht_connection->a->id == -1 || dht_connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
 					connection->writeData(response);
 
@@ -445,10 +444,7 @@ void RootNode::handleMessage(Connection* connection, string message) {
 				connection->writeData(response);
 			}
 			else if (words[1] == "leave") {
-				DHTNode node = DHTNode();
-				node.id = stoi(words[2]);
-
-				if (dht.deleteNode(node)) changedDHT();
+				if (dht.deleteNode(stoi(words[2]))) changedDHT();
 			}
 		}
 		else if (words[0] == "punchhole") {
@@ -497,9 +493,9 @@ void RootNode::handleMessage(RelaySession relay_session, Connection* connection,
 			else if (words[1] == "connect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection dht_connection = DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
-				if (dht_connection.a->id == -1 || dht_connection.b->id == -1) {
+				if (dht_connection->a->id == -1 || dht_connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
 					connection->writeData(relay_response + response);
 
@@ -514,9 +510,9 @@ void RootNode::handleMessage(RelaySession relay_session, Connection* connection,
 			else if (words[1] == "disconnect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection dht_connection = DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
-				if (dht_connection.a->id == -1 || dht_connection.b->id == -1) {
+				if (dht_connection->a->id == -1 || dht_connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
 					connection->writeData(relay_response + response);
 
@@ -529,10 +525,7 @@ void RootNode::handleMessage(RelaySession relay_session, Connection* connection,
 				connection->writeData(relay_response + response);
 			}
 			else if (words[1] == "leave") {
-				DHTNode node = DHTNode();
-				node.id = stoi(words[2]);
-
-				if (dht.deleteNode(node)) changedDHT();
+				if (dht.deleteNode(stoi(words[2]))) changedDHT();
 			}
 		}
 		else if (words[0] == "punchhole") {

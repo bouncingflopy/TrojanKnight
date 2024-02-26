@@ -10,6 +10,8 @@ Connection::Connection(string i, int p, int d) : ip(i), port(p), id(d) {
 
 	socket = new asio::ip::udp::socket(context);
 	socket->open(asio::ip::udp::v4());
+	asio::ip::udp::endpoint local_endpoint = asio::ip::udp::endpoint(asio::ip::make_address("127.0.0.1"), 0);
+	socket->bind(local_endpoint);
 
 	asio::ip::udp::endpoint e = asio::ip::udp::endpoint(asio::ip::make_address(ip), port);
 	connect(e);
@@ -41,8 +43,6 @@ bool Connection::checkNodeProtocol(string data) {
 }
 
 void Connection::handleConnectionMessage(string data) {
-	cout << "connection #" << id << ": " << data << endl;
-
 	if (data == "keepalive") {
 		keepalive = chrono::high_resolution_clock::now();
 	}
@@ -60,7 +60,7 @@ void Connection::asyncReadData() {
 		[&](error_code ec, size_t length) {
 			if (!ec) {
 				string data = string(read_buffer.begin(), read_buffer.begin() + length);
-				
+
 				if (checkNodeProtocol(data)) incoming_messages.push(data);
 				else handleConnectionMessage(data);
 			}
@@ -132,20 +132,17 @@ bool OpenConnection::checkNodeProtocol(string data) {
 }
 
 void OpenConnection::handleConnectionMessage(Message data) {
-	cout << "openconnection: " << data.message << endl;
-
 	if (data.message == "syn") {
 		writeData(data.endpoint, "ack");
 	}
 }
 
 void OpenConnection::asyncReceive() {
-	asio::ip::udp::endpoint* endpoint = new asio::ip::udp::endpoint();
-	socket->async_receive_from(asio::buffer(read_buffer.data(), read_buffer.size()), *endpoint,
+	socket->async_receive_from(asio::buffer(read_buffer.data(), read_buffer.size()), receiving_endpoint,
 		[&](error_code ec, size_t length) {
 			if (!ec) {
 				Message message;
-				message.endpoint = *endpoint;
+				message.endpoint = receiving_endpoint;
 				message.message = string(read_buffer.begin(), read_buffer.begin() + length);
 				
 				if (checkNodeProtocol(message.message)) incoming_messages.push(message);

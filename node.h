@@ -23,15 +23,15 @@ public:
 	Connection* rootConnection = nullptr;
 	bool is_root = false;
 	bool is_reroot = false;
+	bool connecting = false;
+	int connecting_id = -1;
 	RootNode* root_node;
 	thread handle_thread;
 	thread keepalive_thread;
 	thread lookout_thread;
-	thread reroot_thread;
-	thread punchhole_thread;
+	thread* reroot_thread = nullptr;
 	DHT dht;
 	vector<RelaySession> relay_sessions;
-	int session_counter = 0;
 
 	Node();
 	string getIP();

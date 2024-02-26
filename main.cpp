@@ -47,27 +47,45 @@
 //    return 0;
 //}
 
-void printConnections(Node* node) {
-    cout << "-------------------------------------------\nCONNECTIONS" << endl;
+void printConnections(Node* node, int i) {
+    cout << "-------------------------------------------\nCONNECTIONS " << to_string(i) << endl;
     for (Connection* connection : node->connections) {
-        cout << "connection: " << connection->ip << ":" << connection->port << ", connected? " << (connection->connected ? "yes" : "no") << endl;
+        cout << "connection: " << connection->ip << "::" << connection->port << ", connected? " << (connection->connected ? "yes" : "no") << endl;
     }
     cout << "-------------------------------------------" << endl;
 }
 
-void printDHT(Node* node) {
-    cout << "**********************************************\nDHT" << endl;
+void printDHT(Node* node, int i) {
+    cout << "**********************************************\nDHT " << to_string(i) << endl;
     cout << node->dht.toString();
     cout << "**********************************************" << endl;
 }
 
+void createNode(vector<Node*> &nodes) {
+    nodes.push_back(new Node());
+}
+
 int main() { // initialize board with connection from node that is the chess connection
-    Node* node = new Node();
+    cout << "open wireshark" << endl;
+    // ip.src == 127.0.0.1 && ip.addr == 127.0.0.1 && (udp || icmp) && data != "keepalive" && data != "syn" && data != "ack"
+
+    vector<Node*> nodes;
+    string input;
 
     while (true) {
-        this_thread::sleep_for(chrono::seconds(2));
-        printConnections(node);
-        printDHT(node);
+        cin >> input;
+        if (input == "new") {
+            createNode(nodes);
+            continue;
+        }
+        else if (input == "print") {
+            for (int i = 0; i < nodes.size(); i++) {
+                printConnections(nodes[i], i);
+                printDHT(nodes[i], i);
+            }
+        }
+        else if (input == "exit") break;
+        else cout << "unknown command" << endl;
     }
 
     return 0;

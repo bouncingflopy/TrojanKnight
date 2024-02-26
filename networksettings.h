@@ -3,6 +3,7 @@
 
 #include <string>
 #include <chrono>
+#include <iostream>
 
 using namespace std;
 typedef std::basic_string<char> string;
@@ -14,9 +15,6 @@ const int ROOT_PORT = 13370; // open ports 13370-13373
 const string DDNS_URL = "p2pchat.freeddns.org";
 const string DDNS_ID = "10013754";
 const string DDNS_API_KEY = "cb46VUZ4Ub3T3537266Z54Y67b5cf453";
-
-const int SESSION_RANGE = 1000;
-const int SESSION_ID_MOD = 1000;
 
 const int HANDSHAKE_TIME = 4;
 const int HANDSHAKE_FREQUENCY = 500;

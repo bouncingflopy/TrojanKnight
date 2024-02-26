@@ -56,6 +56,7 @@ struct Message {
 class OpenConnection {
 public:
 	asio::ip::udp::endpoint local_endpoint;
+	asio::ip::udp::endpoint receiving_endpoint;
 	asio::ip::udp::socket* socket;
 	asio::io_context context;
 	thread context_thread;
