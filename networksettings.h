@@ -4,9 +4,9 @@
 #include <string>
 #include <chrono>
 #include <iostream>
+#include <memory>
 
 using namespace std;
-typedef std::basic_string<char> string;
 typedef std::chrono::high_resolution_clock::time_point time_point;
 
 const int ROOT_PORT = 13370; // open ports 13370-13373
@@ -25,5 +25,6 @@ const int LOOKOUT_CHECK_FREQUENCY = 500;
 const int DETACHED_DETECTION = 30;
 const int DETACHED_CHECK_FREQUENCY = 5;
 const int REROOT_CHECK_FREQUENCY = 3;
+const int HANDLE_FREQUENCY = 50;
 
 #endif

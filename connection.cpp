@@ -8,7 +8,7 @@ Connection::Connection(string i, int p, int d) : ip(i), port(p), id(d) {
 	asio::io_context::work idleWork(context);
 	context_thread = thread([&]() {context.run();});
 
-	socket = new asio::ip::udp::socket(context);
+	socket = make_shared<asio::ip::udp::socket>(context);
 	socket->open(asio::ip::udp::v4());
 	asio::ip::udp::endpoint local_endpoint = asio::ip::udp::endpoint(asio::ip::make_address("127.0.0.1"), 0);
 	socket->bind(local_endpoint);
@@ -21,7 +21,7 @@ Connection::Connection(string i, int p, int d, int my_port) : ip(i), port(p), id
 	asio::io_context::work idleWork(context);
 	context_thread = thread([&]() {context.run();});
 
-	socket = new asio::ip::udp::socket(context);
+	socket = make_shared<asio::ip::udp::socket>(context);
 	socket->open(asio::ip::udp::v4());
 	asio::ip::udp::endpoint local_endpoint = asio::ip::udp::endpoint(asio::ip::make_address("127.0.0.1"), my_port);
 	socket->bind(local_endpoint);
@@ -31,11 +31,13 @@ Connection::Connection(string i, int p, int d, int my_port) : ip(i), port(p), id
 }
 
 Connection::~Connection() {
+	if (port == 13370) cout << "closing rootConnection" << endl;
+
 	context.stop();
 	context_thread.join();
 
 	if (socket->is_open()) socket->close();
-	delete socket;
+	socket.reset();
 }
 
 bool Connection::checkNodeProtocol(string data) {
@@ -105,7 +107,8 @@ void Connection::connect(asio::ip::udp::endpoint e) {
 }
 
 void Connection::change(string i, int p, int d) {
-	ip = i;
+	cout << "changing " << ip << " to " << i << endl;
+	ip = i; // corrupt error
 	port = p;
 	id = d;
 
@@ -118,7 +121,7 @@ OpenConnection::OpenConnection() {
 	context_thread = thread([&]() {context.run();});
 
 	local_endpoint = asio::ip::udp::endpoint(asio::ip::udp::v4(), ROOT_PORT);
-	socket = new asio::ip::udp::socket(context, local_endpoint);
+	socket = make_shared<asio::ip::udp::socket>(context, local_endpoint);
 
 	asyncReceive();
 }

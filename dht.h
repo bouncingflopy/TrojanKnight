@@ -13,17 +13,17 @@ struct DHTConnection;
 
 struct DHT {
 	int version;
-	vector<DHTNode*> nodes;
-	vector<DHTConnection*> connections;
+	vector<shared_ptr<DHTNode>> nodes;
+	vector<shared_ptr<DHTConnection>> connections;
 
 	DHT();
 	DHT(string dht);
 	string toString();
-	bool addNode(DHTNode* node);
-	bool addConnection(DHTConnection* connection);
+	bool addNode(shared_ptr<DHTNode> node);
+	bool addConnection(shared_ptr<DHTConnection> connection);
 	bool deleteNode(int id);
-	bool deleteConnection(DHTConnection* connection); // needed?
-	DHTNode* getNodeFromId(int id);
+	bool deleteConnection(shared_ptr<DHTConnection> connection); // needed?
+	shared_ptr<DHTNode> getNodeFromId(int id);
 	int getFreeId();
 	void calculateLevels();
 };
@@ -50,7 +50,7 @@ struct DHTNode {
 	int id;
 	int level;
 	string ip;
-	vector<DHTConnection*> connections;
+	vector<shared_ptr<DHTConnection>> connections;
 	bool disconnected = false;
 	time_point disconnect_time;
 
@@ -60,11 +60,11 @@ struct DHTNode {
 };
 
 struct DHTConnection {
-	DHTNode* a;
-	DHTNode* b;
+	shared_ptr<DHTNode> a;
+	shared_ptr<DHTNode> b;
 
 	DHTConnection();
-	DHTConnection(DHTNode* a, DHTNode* b);
+	DHTConnection(shared_ptr<DHTNode> a, shared_ptr<DHTNode> b);
 	bool operator ==(DHTConnection const& connection);
 };
 

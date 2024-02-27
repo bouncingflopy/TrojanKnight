@@ -22,7 +22,7 @@ DHT::DHT(string dht) {
 		string temp;
 		while (getline(stream, temp, ' ')) words.push_back(temp);
 
-		DHTNode* node = new DHTNode(stoi(words[0]), stoi(words[1]), words[2]);
+		shared_ptr<DHTNode> node = make_shared<DHTNode>(stoi(words[0]), stoi(words[1]), words[2]);
 		nodes.push_back(node);
 	}
 
@@ -32,10 +32,10 @@ DHT::DHT(string dht) {
 		string temp;
 		while (getline(stream, temp, ' ')) words.push_back(temp);
 
-		DHTNode* a = getNodeFromId(stoi(words[0]));
-		DHTNode* b = getNodeFromId(stoi(words[1]));
+		shared_ptr<DHTNode> a = getNodeFromId(stoi(words[0]));
+		shared_ptr<DHTNode> b = getNodeFromId(stoi(words[1]));
 
-		DHTConnection* connection = new DHTConnection(a, b);
+		shared_ptr<DHTConnection> connection = make_shared<DHTConnection>(a, b);
 		connections.push_back(connection);
 		
 		a->connections.push_back(connection);
@@ -48,19 +48,19 @@ string DHT::toString() {
 	
 	dht += to_string(version) + "\n-\n";
 
-	for (DHTNode* node : nodes) {
+	for (shared_ptr<DHTNode>& node : nodes) {
 		dht += to_string(node->id) + " " + to_string(node->level) + " " + node->ip + "\n";
 	}
 	dht += "-\n";
 
-	for (DHTConnection* connection : connections) {
+	for (shared_ptr<DHTConnection>& connection : connections) {
 		dht += to_string(connection->a->id) + " " + to_string(connection->b->id) + "\n";
 	}
 
 	return dht;
 }
 
-bool DHT::addNode(DHTNode* node) {
+bool DHT::addNode(shared_ptr<DHTNode> node) {
 	for (int i = 0; i < nodes.size(); i++) {
 		if (*node == *nodes[i]) {
 			return false;
@@ -71,7 +71,7 @@ bool DHT::addNode(DHTNode* node) {
 	return true;
 }
 
-bool DHT::addConnection(DHTConnection* connection) {
+bool DHT::addConnection(shared_ptr<DHTConnection> connection) {
 	for (int i = 0; i < connections.size(); i++) {
 		if (*connection == *connections[i]) {
 			return false;
@@ -91,7 +91,7 @@ bool DHT::addConnection(DHTConnection* connection) {
 bool DHT::deleteNode(int id) {
 	for (int i = 0; i < nodes.size(); i++) {
 		if (id == nodes[i]->id) {
-			for (DHTConnection* connection : nodes[i]->connections) {
+			for (shared_ptr<DHTConnection>& connection : nodes[i]->connections) {
 				deleteConnection(connection);
 			}
 
@@ -104,14 +104,14 @@ bool DHT::deleteNode(int id) {
 	return false;
 }
 
-bool DHT::deleteConnection(DHTConnection* connection) {
+bool DHT::deleteConnection(shared_ptr<DHTConnection> connection) {
 	for (int i = 0; i < connections.size(); i++) {
 		if (*connection == *connections[i]) {
-			vector<DHTConnection*>* a_connections = &(connections[i]->a->connections);
-			vector<DHTConnection*>* b_connections = &(connections[i]->b->connections);
+			vector<shared_ptr<DHTConnection>>& a_connections = connections[i]->a->connections;
+			vector<shared_ptr<DHTConnection>>& b_connections = connections[i]->b->connections;
 
-			a_connections->erase(remove(a_connections->begin(), a_connections->end(), connections[i]), a_connections->end());
-			b_connections->erase(remove(b_connections->begin(), b_connections->end(), connections[i]), b_connections->end());
+			a_connections.erase(remove(a_connections.begin(), a_connections.end(), connections[i]), a_connections.end());
+			b_connections.erase(remove(b_connections.begin(), b_connections.end(), connections[i]), b_connections.end());
 
 			connections.erase(connections.begin() + i);
 
@@ -124,22 +124,22 @@ bool DHT::deleteConnection(DHTConnection* connection) {
 	return false;
 }
 
-DHTNode* DHT::getNodeFromId(int id) {
+shared_ptr<DHTNode> DHT::getNodeFromId(int id) {
 	for (int i = 0; i < nodes.size(); i++) {
 		if (nodes[i]->id == id) {
 			return nodes[i];
 		}
 	}
 	
-	DHTNode empty = DHTNode();
-	empty.id = -1;
+	shared_ptr<DHTNode> empty = make_shared<DHTNode>();
+	empty->id = -1;
 
-	return &empty;
+	return empty;
 }
 
 int DHT::getFreeId() {
 	vector<int> ids;
-	for (DHTNode* node : nodes) {
+	for (shared_ptr<DHTNode>& node : nodes) {
 		ids.push_back(node->id);
 	}
 
@@ -159,22 +159,22 @@ int DHT::getFreeId() {
 }
 
 void DHT::calculateLevels() {
-	for (DHTNode* node : nodes) {
+	for (shared_ptr<DHTNode>& node : nodes) {
 		node->level = -1;
 	}
 
-	queue<DHTNode*> current_queue;
-	queue<DHTNode*> next_queue;
+	queue<shared_ptr<DHTNode>> current_queue;
+	queue<shared_ptr<DHTNode>> next_queue;
 	int level = 0;
 	current_queue.push(nodes[0]);
 
 	while (!current_queue.empty()) {
-		DHTNode* current_node = current_queue.front();
+		shared_ptr<DHTNode> current_node = current_queue.front();
 		current_queue.pop();
 
 		current_node->level = level;
 
-		for (DHTConnection* connection : current_node->connections) {
+		for (shared_ptr<DHTConnection>& connection : current_node->connections) {
 			if (connection->a->level == -1) next_queue.push(connection->a);
 			if (connection->b->level == -1) next_queue.push(connection->b);
 		}
@@ -188,6 +188,9 @@ void DHT::calculateLevels() {
 			}
 		}
 	}
+
+	current_queue = queue<shared_ptr<DHTNode>>(); // stupid
+	next_queue = queue<shared_ptr<DHTNode>>();
 }
 
 DHTNode::DHTNode() {};
@@ -200,7 +203,7 @@ bool DHTNode::operator ==(DHTNode const& node) {
 
 DHTConnection::DHTConnection() {};
 
-DHTConnection::DHTConnection(DHTNode* a, DHTNode* b) : a(a), b(b) {};
+DHTConnection::DHTConnection(shared_ptr<DHTNode> a, shared_ptr<DHTNode> b) : a(a), b(b) {};
 
 bool DHTConnection::operator ==(DHTConnection const& connection) {
 	return (a == connection.a && b == connection.b) || (a == connection.b && b == connection.a);

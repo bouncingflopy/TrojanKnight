@@ -19,17 +19,17 @@ struct PunchholePair;
 class Node {
 public:
 	int id = -1;
-	vector<Connection*> connections;
-	Connection* rootConnection = nullptr;
+	vector<shared_ptr<Connection>> connections;
+	shared_ptr<Connection> rootConnection;
 	bool is_root = false;
 	bool is_reroot = false;
 	bool connecting = false;
 	int connecting_id = -1;
-	RootNode* root_node;
+	shared_ptr<RootNode> root_node;
 	thread handle_thread;
 	thread keepalive_thread;
 	thread lookout_thread;
-	thread* reroot_thread = nullptr;
+	shared_ptr<thread> reroot_thread;
 	DHT dht;
 	vector<RelaySession> relay_sessions;
 
@@ -41,8 +41,8 @@ public:
 	void becomeRoot();
 	void connect();
 	void handleThread();
-	void handleMessage(Connection* connection, string message);
-	void handleMessage(RelaySession relay_session, Connection* connection, string message);
+	void handleMessage(shared_ptr<Connection> connection, string message);
+	void handleMessage(RelaySession relay_session, shared_ptr<Connection> connection, string message);
 	void handleMessage(string message);
 	int pickNodeToConnect();
 	void manageConnections();
@@ -69,6 +69,7 @@ struct RelaySession {
 // add and implement private ip connection, only query written
 // what if node sends root dht update (connect and disconnect) but root is rerooting or doesnt get it?
 // root check no one takes ddns, if im empty connect to them (mid reroot)
+// make root connection a distributed shared_ptr
 
 /*
 
@@ -116,28 +117,29 @@ ack
 
 */
 
-// delete all pointers when closing program
+// make all pointers shared_ptrs in chess
 // make chess board size based on computer size
 // endcryption public key private key
-// detach thread?
+// node rootnode connection openconnection destrcutors for closing threads and queues
 
 class RootNode {
 public:
-	Node* node;
-	OpenConnection* admin;
+	shared_ptr<Node> node;
+	shared_ptr<OpenConnection> admin;
 	thread handle_thread;
 	thread detached_thread;
 	DHT dht;
 	vector<PunchholePair> punchhole_pairs;
 	vector<bool> port_use = {false, false, false};
-
-	RootNode(Node* n);
+	
+	RootNode();
+	RootNode(shared_ptr<Node> n);
 	void createDHT();
 	void overtakeDHT();
 	void handleThread();
 	void handleMessage(Message message);
-	void handleMessage(Connection* connection, string message);
-	void handleMessage(RelaySession relay_session, Connection* connection, string message);
+	void handleMessage(shared_ptr<Connection> connection, string message);
+	void handleMessage(RelaySession relay_session, shared_ptr<Connection> connection, string message);
 	void changedDHT();
 	void holepunchConnect(asio::ip::udp::endpoint a_endpoint, asio::ip::udp::endpoint b_endpoint, int a_id, int b_id);
 	void detachedCheck();

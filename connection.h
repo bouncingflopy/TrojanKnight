@@ -27,7 +27,7 @@ public:
 	string ip;
 	int port;
 	bool connected = false;
-	asio::ip::udp::socket* socket;
+	shared_ptr<asio::ip::udp::socket> socket;
 	asio::ip::udp::endpoint endpoint;
 	asio::io_context context;
 	thread context_thread;
@@ -57,7 +57,7 @@ class OpenConnection {
 public:
 	asio::ip::udp::endpoint local_endpoint;
 	asio::ip::udp::endpoint receiving_endpoint;
-	asio::ip::udp::socket* socket;
+	shared_ptr<asio::ip::udp::socket> socket;
 	asio::io_context context;
 	thread context_thread;
 	vector<char> read_buffer = vector<char>(1024);

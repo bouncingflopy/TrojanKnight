@@ -148,7 +148,7 @@ void Node::setDDNS(string ip) {
 
 void Node::becomeRoot() {
 	is_root = true;
-	root_node = new RootNode(this);
+	root_node =  make_shared<RootNode>(shared_ptr<Node>(this));
 }
 
 void Node::connect() {
@@ -167,8 +167,8 @@ void Node::handleThread() {
 			}
 		}
 		
-		vector<Connection*> copied_connections = connections;
-		for (Connection* connection : copied_connections) {
+		for (shared_ptr<Connection>& connection : connections) {
+			if (!connection) continue; // stupid
 			if (connection->incoming_messages.size() > 0) {
 				string message = connection->incoming_messages.front();
 				connection->incoming_messages.pop();
@@ -177,21 +177,21 @@ void Node::handleThread() {
 			}
 		}
 
-		this_thread::yield();
+		this_thread::sleep_for(chrono::milliseconds(HANDLE_FREQUENCY));
 	}
 }
 
 int Node::pickNodeToConnect() {
 	// random implementation, this defines the structure of the network
 	// keep some randomness to not get stuck in a loop if someones not working
-	vector<DHTNode*> nodes;
+	vector<shared_ptr<DHTNode>> nodes;
 	vector<int> present = {id};
 
-	for (Connection* connection : connections) {
+	for (shared_ptr<Connection>& connection : connections) {
 		present.push_back(connection->id);
 	}
 
-	for (DHTNode* node : dht.nodes) {
+	for (shared_ptr<DHTNode>& node : dht.nodes) {
 		if (find(present.begin(), present.end(), node->id) != present.end()) continue;
 		if (node->connections.size() >= 3) continue;
 
@@ -199,7 +199,7 @@ int Node::pickNodeToConnect() {
 	}
 
 	if (nodes.size() == 0) {
-		for (DHTNode* node : dht.nodes) {
+		for (shared_ptr<DHTNode>& node : dht.nodes) {
 			if (find(present.begin(), present.end(), node->id) != present.end()) continue;
 			if (node->id == dht.nodes[0]->id) continue;
 			if (node->connections.size() > 3) continue;
@@ -209,7 +209,7 @@ int Node::pickNodeToConnect() {
 	}
 
 	if (nodes.size() == 0) {
-		for (DHTNode* node : dht.nodes) {
+		for (shared_ptr<DHTNode>& node : dht.nodes) {
 			if (find(present.begin(), present.end(), node->id) != present.end()) continue;
 			if (node->id == dht.nodes[0]->id) continue;
 
@@ -256,7 +256,7 @@ void Node::manageConnections() { // make this on thread
 			connecting = true;
 
 			string message = "rpnp\npunchhole request " + to_string(id) + " " + to_string(pick);
-			rootConnection->writeData(message);
+			rootConnection->writeData(message); // no root connection error
 		}
 	}
 }
@@ -270,7 +270,7 @@ void Node::rerootCheck() {
 		if (!connection.connected) {
 			vector<int> root_connections;
 
-			for (DHTConnection* dht_connection : dht.nodes[0]->connections) {
+			for (shared_ptr<DHTConnection>& dht_connection : dht.nodes[0]->connections) {
 				if (dht_connection->a->id == dht.nodes[0]->id) root_connections.push_back(dht_connection->b->id);
 				else  root_connections.push_back(dht_connection->a->id);
 			}
@@ -278,7 +278,7 @@ void Node::rerootCheck() {
 			dht.deleteNode(dht.nodes[0]->id);
 
 			string message = "pnp\ndisconnect " + to_string(dht.nodes[0]->id);
-			for (int root_connection : root_connections) {
+			for (int& root_connection : root_connections) {
 				if (root_connection == id) {
 					disconnect(dht.nodes[0]->id);
 					continue;
@@ -303,14 +303,14 @@ void Node::lookout() {
 		time_point now = chrono::high_resolution_clock::now();
 
 		vector<int> bad_ids;
-		for (Connection* connection : connections) {
+		for (shared_ptr<Connection>& connection : connections) {
 			int time_passed = chrono::duration_cast<chrono::seconds>(now - connection->keepalive).count();
 			if (time_passed > KEEPALIVE_DETECTION) {
 				bad_ids.push_back(connection->id);
 			}
 		}
 
-		for (int bad_id : bad_ids) {
+		for (int& bad_id : bad_ids) {
 			disconnect(bad_id);
 		}
 
@@ -344,8 +344,8 @@ void Node::keepalive() {
 	while (true) {
 		string message = "keepalive";
 
-		for (Connection* connection : connections) {
-			connection->writeData(message);
+		for (shared_ptr<Connection>& connection : connections) {
+			if (connection && connection->connected) connection->writeData(message); // stupid
 		}
 
 		if (rootConnection) {
@@ -360,38 +360,30 @@ bool Node::connectToRoot() {
 	if (rootConnection) return true;
 	
 	string root = getDDNS();
-	rootConnection = new Connection(root, ROOT_PORT, 0);
+	rootConnection = make_shared<Connection>(root, ROOT_PORT, 0);
 
 	if (rootConnection->connected) return true;
 	else {
-		delete rootConnection;
-		rootConnection = nullptr;
+		rootConnection.reset();
 
 		return false;
 	}
 }
 
 void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
-	Connection* connection = rootConnection;
-	rootConnection = nullptr;
+	shared_ptr<Connection> connection = rootConnection;
+	rootConnection.reset();
 
 	connection->change(target_ip, target_port, target_id);
 	
 	if (connection->connected) {
 		connections.push_back(connection);
 
-		DHTNode* a = dht.getNodeFromId(id);
-		DHTNode* b = dht.getNodeFromId(target_id);
+		shared_ptr<DHTNode> a = dht.getNodeFromId(id);
+		shared_ptr<DHTNode> b = dht.getNodeFromId(target_id);
 
-		DHTConnection dht_connection = DHTConnection();
-		cout << "before" << endl;
-		cout << &dht_connection << endl;
-		cout << "after" << endl;
-		dht_connection.a = a;
-		dht_connection.b = b;
-		//DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
-
-		dht.addConnection(&dht_connection);
+		shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
+		dht.addConnection(dht_connection);
 
 		string message = "rpnp\ndht connect " + to_string(id) + " " + to_string(target_id);
 		relay(dht.nodes[0]->id, message);
@@ -399,7 +391,7 @@ void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
 		cout << to_string(id) << " connected to " << to_string(target_id) << endl;
 	}
 	else {
-		delete connection;
+		connection.reset();
 	}
 
 	connecting = false;
@@ -410,11 +402,11 @@ void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
 vector<int> Node::findPathToRoot() {
 	vector<int> path {id};
 	int level = dht.getNodeFromId(id)->level;
-	DHTNode* current_node = dht.getNodeFromId(id);
+	shared_ptr<DHTNode> current_node = dht.getNodeFromId(id);
 
 	while (level != 0) {
-		for (DHTConnection* connection : current_node->connections) {
-			if (connection->a == current_node && connection->b->level < level) {
+		for (shared_ptr<DHTConnection>& connection : current_node->connections) {
+			if (*connection->a == *current_node && connection->b->level < level) {
 				current_node = connection->b;
 				path.push_back(current_node->id);
 				level = current_node->level;
@@ -422,7 +414,7 @@ vector<int> Node::findPathToRoot() {
 				break;
 			}
 			
-			if (connection->b == current_node && connection->a->level < level) {
+			if (*connection->b == *current_node && connection->a->level < level) {
 				current_node = connection->a;
 				path.push_back(current_node->id);
 				level = current_node->level;
@@ -443,11 +435,11 @@ vector<int> Node::findPath(int target_id) {
 	while (!queue.empty()) {
 		vector<int> current_vector = queue.front();
 		queue.pop();
-		DHTNode* current_node = dht.getNodeFromId(current_vector.back());
+		shared_ptr<DHTNode> current_node = dht.getNodeFromId(current_vector.back());
 
-		for (DHTConnection* connection : current_node->connections) {
-			DHTNode* next_node;
-			if (connection->a == current_node) next_node = connection->b;
+		for (shared_ptr<DHTConnection>& connection : current_node->connections) {
+			shared_ptr<DHTNode> next_node;
+			if (*connection->a == *current_node) next_node = connection->b;
 			else next_node = connection->a;
 
 			bool been_check = false;
@@ -491,7 +483,7 @@ void Node::relay(int target_id, string payload) {
 
 	message += payload;
 
-	for (Connection* connection : connections) {
+	for (shared_ptr<Connection>& connection : connections) {
 		if (connection->id == path[1]) {
 			connection->writeData(message);
 			
@@ -507,7 +499,7 @@ void Node::relay(int target_id, string payload) {
 
 void Node::disconnect(int target_id) {
 	string message = "pnp\ndisconnect " + to_string(id);
-	Connection* connection = nullptr;
+	shared_ptr<Connection> connection = nullptr;
 
 	for (int i = 0; i < connections.size(); i++) {
 		if (connections[i]->id == target_id) {
@@ -519,7 +511,7 @@ void Node::disconnect(int target_id) {
 		}
 	}
 
-	DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
+	shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
 	dht.deleteConnection(dht_connection);
 	
 	if (dht.getNodeFromId(id)->connections.size() > 0) {
@@ -535,7 +527,7 @@ void Node::disconnect(int target_id) {
 		root_node->port_use[port] = false;
 	}
 
-	delete connection;
+	connection.reset();
 }
 
 //static bool is_private_ip(const asio::ip::address& addr) { // also copied from openai

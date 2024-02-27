@@ -6,7 +6,6 @@
 #include <chrono>
 
 using namespace std;
-typedef std::basic_string<char> string;
 
 class Board;
 enum GameResult;

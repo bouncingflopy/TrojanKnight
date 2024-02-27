@@ -4,7 +4,7 @@
 
 using namespace std;
 
-void Node::handleMessage(Connection* connection, string message) {
+void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 	vector<string> lines;
 	istringstream stream(message);
 	string temp;
@@ -44,7 +44,10 @@ void Node::handleMessage(Connection* connection, string message) {
 				dht = received_dht;
 			}
 
-			if (!is_reroot) reroot_thread = new thread(&Node::rerootCheck, this);
+			if (!is_reroot) {
+				if (reroot_thread) reroot_thread->join();
+				reroot_thread = make_shared<thread>(&Node::rerootCheck, this);
+			}
 
 			manageConnections();
 
@@ -56,8 +59,7 @@ void Node::handleMessage(Connection* connection, string message) {
 		}
 		else if (words[0] == "punchhole") {
 			if (words[1] == "fail") {
-				delete rootConnection;
-				rootConnection = nullptr;
+				rootConnection.reset();
 
 				manageConnections();
 			}
@@ -88,17 +90,11 @@ void Node::handleMessage(Connection* connection, string message) {
 			}
 		}
 		else if (words[0] == "success") {
-			if (rootConnection) {
-				delete rootConnection;
-				rootConnection = nullptr;
-			}
+			if (rootConnection) rootConnection.reset();
 		}
 		else if (words[0] == "unsuccess") {
 			cout << "why is there an unsuccess, nothing should go wrong" << endl;
-			if (rootConnection) {
-				delete rootConnection;
-				rootConnection = nullptr;
-			}
+			if (rootConnection) rootConnection.reset();
 		}
 		else if (words[0] == "broadcast") {
 			string broadcast = "";
@@ -114,7 +110,7 @@ void Node::handleMessage(Connection* connection, string message) {
 			string rebroadcast = "pnp\nbroadcast\n" + broadcast;
 			int my_level = dht.getNodeFromId(id)->level;
 
-			for (Connection* my_connection : connections) {
+			for (shared_ptr<Connection>& my_connection : connections) {
 				if (my_level < dht.getNodeFromId(my_connection->id)->level) {
 					my_connection->writeData(rebroadcast);
 				}
@@ -139,7 +135,7 @@ void Node::handleMessage(Connection* connection, string message) {
 					break;
 				}
 
-				for (Connection* my_connection : connections) {
+				for (shared_ptr<Connection>& my_connection : connections) {
 					if (my_connection->id == relay_session.to) {
 						my_connection->writeData(relay_message);
 						break;
@@ -186,15 +182,15 @@ void Node::handleMessage(Connection* connection, string message) {
 
 void RootNode::handleMessage(Message message) {
 	vector<string> lines;
-	istringstream stream(message.message);
-	string temp;
-	while (getline(stream, temp, '\n')) lines.push_back(temp);
+	istringstream lineStream(message.message); // stupid
+	string lineTemp;
+	while (getline(lineStream, lineTemp, '\n')) lines.push_back(lineTemp);
 
 	for (string line : lines) {
 		vector<string> words;
-		istringstream stream(line);
-		string temp;
-		while (getline(stream, temp, ' ')) words.push_back(temp);
+		istringstream wordStream(line);
+		string wordTemp;
+		while (getline(wordStream, wordTemp, ' ')) words.push_back(wordTemp);
 
 		if (words[0] == "rpnp") {
 			continue;
@@ -206,7 +202,7 @@ void RootNode::handleMessage(Message message) {
 				admin->writeData(message.endpoint, response);
 			}
 			else if (words[1] == "join") {
-				DHTNode* node = new DHTNode();
+				shared_ptr<DHTNode> node = make_shared<DHTNode>();
 				node->id = dht.getFreeId();
 				node->level = -1;
 				node->ip = message.endpoint.address().to_string();
@@ -219,7 +215,7 @@ void RootNode::handleMessage(Message message) {
 			else if (words[1] == "connect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection* connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				shared_ptr<DHTConnection> connection = make_shared<DHTConnection>(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
 				if (connection->a->id == -1 || connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
@@ -236,7 +232,7 @@ void RootNode::handleMessage(Message message) {
 			else if (words[1] == "disconnect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection* connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				shared_ptr<DHTConnection> connection = make_shared<DHTConnection>(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
 				if (connection->a->id == -1 || connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
@@ -259,16 +255,21 @@ void RootNode::handleMessage(Message message) {
 				PunchholePair failed_pair = PunchholePair(stoi(words[2]), stoi(words[3]));
 				asio::ip::udp::endpoint requested_endpoint;
 
+				bool found = false;
 				for (int i = 0; i < punchhole_pairs.size(); i++) {
 					if (failed_pair == punchhole_pairs[i]) {
 						requested_endpoint = punchhole_pairs[i].requested_endpoint;
 						punchhole_pairs.erase(punchhole_pairs.begin() + i);
+
+						found = true;
 						break;
 					}
 				}
 
-				string report = "pnp\npunchhole fail";
-				admin->writeData(requested_endpoint, report);
+				if (found) {
+					string report = "pnp\npunchhole fail";
+					admin->writeData(requested_endpoint, report);
+				}
 			}
 			else if (words[1] == "request") {
 				PunchholePair pair = PunchholePair(stoi(words[2]), stoi(words[3]), message.endpoint);
@@ -309,7 +310,7 @@ void RootNode::handleMessage(Message message) {
 
 // update by copy from other handleMessage
 
-void Node::handleMessage(RelaySession relay_session, Connection* connection, string message) {
+void Node::handleMessage(RelaySession relay_session, shared_ptr<Connection> connection, string message) {
 	vector<string> lines;
 	istringstream stream(message);
 	string temp;
@@ -379,7 +380,7 @@ void Node::handleMessage(string message) {
 
 			string rebroadcast = "pnp\nbroadcast\n" + broadcast;
 
-			for (Connection* my_connection : connections) {
+			for (shared_ptr<Connection>& my_connection : connections) {
 				my_connection->writeData(rebroadcast);
 			}
 
@@ -388,7 +389,7 @@ void Node::handleMessage(string message) {
 	}
 }
 
-void RootNode::handleMessage(Connection* connection, string message) {
+void RootNode::handleMessage(shared_ptr<Connection> connection, string message) {
 	vector<string> lines;
 	istringstream stream(message);
 	string temp;
@@ -412,7 +413,7 @@ void RootNode::handleMessage(Connection* connection, string message) {
 			else if (words[1] == "connect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
 				if (dht_connection->a->id == -1 || dht_connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
@@ -429,7 +430,7 @@ void RootNode::handleMessage(Connection* connection, string message) {
 			else if (words[1] == "disconnect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
 				if (dht_connection->a->id == -1 || dht_connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
@@ -467,7 +468,7 @@ void RootNode::handleMessage(Connection* connection, string message) {
 	}
 }
 
-void RootNode::handleMessage(RelaySession relay_session, Connection* connection, string message) {
+void RootNode::handleMessage(RelaySession relay_session, shared_ptr<Connection> connection, string message) {
 	string relay_response = "pnp\nrelay response " + to_string(relay_session.session) + "\n";
 	
 	vector<string> lines;
@@ -493,7 +494,7 @@ void RootNode::handleMessage(RelaySession relay_session, Connection* connection,
 			else if (words[1] == "connect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
 				if (dht_connection->a->id == -1 || dht_connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
@@ -510,7 +511,7 @@ void RootNode::handleMessage(RelaySession relay_session, Connection* connection,
 			else if (words[1] == "disconnect") {
 				int a = stoi(words[2]);
 				int b = stoi(words[3]);
-				DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(a), dht.getNodeFromId(b));
+				shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(a), dht.getNodeFromId(b));
 
 				if (dht_connection->a->id == -1 || dht_connection->b->id == -1) {
 					string response = "pnp\nunsuccess";

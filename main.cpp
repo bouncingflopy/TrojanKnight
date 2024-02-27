@@ -1,5 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include <random> // only for testing
 
 #include "node.h"
 #include "board.h"
@@ -49,7 +50,7 @@
 
 void printConnections(Node* node, int i) {
     cout << "-------------------------------------------\nCONNECTIONS " << to_string(i) << endl;
-    for (Connection* connection : node->connections) {
+    for (shared_ptr<Connection>& connection : node->connections) {
         cout << "connection: " << connection->ip << "::" << connection->port << ", connected? " << (connection->connected ? "yes" : "no") << endl;
     }
     cout << "-------------------------------------------" << endl;
@@ -61,32 +62,46 @@ void printDHT(Node* node, int i) {
     cout << "**********************************************" << endl;
 }
 
-void createNode(vector<Node*> &nodes) {
+void createNode(vector<Node*>& nodes) {
     nodes.push_back(new Node());
 }
 
-int main() { // initialize board with connection from node that is the chess connection
+static int generateRandom(int low, int high) {
+    static random_device rd;
+    static mt19937 gen(rd());
+    uniform_int_distribution<int> distribution(low, high);
+    return distribution(gen);
+}
+
+int main() { // initialize board with connection from node that is the chess connection    
     cout << "open wireshark" << endl;
     // ip.src == 127.0.0.1 && ip.addr == 127.0.0.1 && (udp || icmp) && data != "keepalive" && data != "syn" && data != "ack"
 
     vector<Node*> nodes;
     string input;
+    
+    createNode(nodes);
+    createNode(nodes);
 
-    while (true) {
-        cin >> input;
-        if (input == "new") {
+    while (nodes.size() <= 3) {
+        //cin >> input;
+
+        if (input == "new" || generateRandom(1, 10) == 1) {
             createNode(nodes);
-            continue;
         }
-        else if (input == "print") {
+        /*else if (input == "print") {
             for (int i = 0; i < nodes.size(); i++) {
                 printConnections(nodes[i], i);
                 printDHT(nodes[i], i);
             }
         }
         else if (input == "exit") break;
-        else cout << "unknown command" << endl;
+        else cout << "unknown command" << endl;*/
+
+        this_thread::sleep_for(chrono::milliseconds(100));
     }
+
+    this_thread::sleep_for(chrono::milliseconds(3000));
 
     return 0;
 }

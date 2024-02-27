@@ -3,8 +3,10 @@
 
 using namespace std;
 
-RootNode::RootNode(Node* n) : node(n) {
-	admin = new OpenConnection();
+RootNode::RootNode() {};
+
+RootNode::RootNode(shared_ptr<Node> n) : node(n) {
+	admin = make_shared<OpenConnection>();
 	handle_thread = thread(&RootNode::handleThread, this);
 
 	if (node->connections.size() == 0) createDHT();
@@ -24,14 +26,14 @@ void RootNode::handleThread() {
 			handleMessage(message);
 		}
 
-		this_thread::yield();
+		this_thread::sleep_for(chrono::milliseconds(HANDLE_FREQUENCY));
 	}
 }
 
 void RootNode::createDHT() {
 	dht = DHT();
 
-	DHTNode* dhtNode = new DHTNode(0, 0, node->getIP());
+	shared_ptr<DHTNode> dhtNode = make_shared<DHTNode>(0, 0, node->getIP());
 
 	if (dht.addNode(dhtNode)) changedDHT();
 
@@ -66,7 +68,7 @@ void RootNode::detachedCheck() {
 		time_point now = chrono::high_resolution_clock::now();
 		vector<int> bad_nodes;
 
-		for (DHTNode* dht_node : dht.nodes) {
+		for (shared_ptr<DHTNode>& dht_node : dht.nodes) {
 			if (dht_node->id == node->id) continue;
 
 			if (dht_node->disconnected) {
@@ -89,7 +91,7 @@ void RootNode::detachedCheck() {
 		}
 
 		if (bad_nodes.size() > 0) {
-			for (int bad_node : bad_nodes) {
+			for (int& bad_node : bad_nodes) {
 				dht.deleteNode(bad_node);
 			}
 			changedDHT();
@@ -117,12 +119,12 @@ void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint,
 	string message = "pnp\npunchhole info " + to_string(node->id) + " " + dht.nodes[0]->ip + " " + to_string(port);
 	admin->writeData(target_endpoint, message);
 
-	Connection* connection = new Connection(target_endpoint.address().to_string(), target_endpoint.port(), target_id, port);
+	shared_ptr<Connection> connection = make_shared<Connection>(target_endpoint.address().to_string(), target_endpoint.port(), target_id, port);
 	
 	if (connection->connected) {
 		node->connections.push_back(connection);
 
-		DHTConnection* dht_connection = new DHTConnection(dht.getNodeFromId(node->id), dht.getNodeFromId(target_id));
+		shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(node->id), dht.getNodeFromId(target_id));
 		if (dht.addConnection(dht_connection)) changedDHT();
 
 		cout << to_string(node->id) << " connected to " + to_string(target_id) << endl;

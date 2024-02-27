@@ -3,7 +3,7 @@
 
 #include <string>
 
-typedef std::basic_string<char> string;
+using namespace std;
 
 class Piece;
 class Name;

@@ -7,8 +7,6 @@
 
 #include "boardsettings.h"
 
-typedef std::basic_string<char> string;
-
 class Tile;
 class Move;
 class Player;

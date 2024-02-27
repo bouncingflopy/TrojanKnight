@@ -7,7 +7,6 @@
 #include <chrono>
 
 using namespace std;
-typedef std::basic_string<char> string;
 
 const enum PieceType { pawn, rook, knight, bishop, queen, king };
 const enum GameResult { checkmate, stalemate, resignation, agreed_draw, threefold, fifty_moves, dead_position, timeout, insufficient_material, error_move, error_timer, error_sync, disconnected };

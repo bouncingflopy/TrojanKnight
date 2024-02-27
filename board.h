@@ -10,7 +10,6 @@
 #include "boardsettings.h"
 
 using namespace std;
-typedef std::basic_string<char> string;
 
 class Tile;
 class Piece;
