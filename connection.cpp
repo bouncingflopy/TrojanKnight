@@ -31,8 +31,6 @@ Connection::Connection(string i, int p, int d, int my_port) : ip(i), port(p), id
 }
 
 Connection::~Connection() {
-	if (port == 13370) cout << "closing rootConnection" << endl;
-
 	context.stop();
 	context_thread.join();
 
@@ -107,8 +105,7 @@ void Connection::connect(asio::ip::udp::endpoint e) {
 }
 
 void Connection::change(string i, int p, int d) {
-	cout << "changing " << ip << " to " << i << endl;
-	ip = i; // corrupt error
+	ip = i;
 	port = p;
 	id = d;
 

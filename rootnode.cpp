@@ -127,7 +127,10 @@ void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint,
 		shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(node->id), dht.getNodeFromId(target_id));
 		if (dht.addConnection(dht_connection)) changedDHT();
 
-		cout << to_string(node->id) << " connected to " + to_string(target_id) << endl;
+		cout << to_string(node->id) << " == " + to_string(target_id) << endl;
+	}
+	else {
+		port_use[port - ROOT_PORT - 1] = false;
 	}
 }
 

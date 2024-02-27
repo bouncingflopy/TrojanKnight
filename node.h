@@ -21,6 +21,8 @@ public:
 	int id = -1;
 	vector<shared_ptr<Connection>> connections;
 	shared_ptr<Connection> rootConnection;
+	// close rootConnection after inactive time
+	shared_ptr<Connection> punchholeRC;
 	bool is_root = false;
 	bool is_reroot = false;
 	bool connecting = false;
@@ -50,6 +52,7 @@ public:
 	void lookout();
 	void keepalive();
 	bool connectToRoot();
+	bool connectToPunchholeRoot();
 	void punchholeConnect(string target_ip, int target_port, int target_id);
 	vector<int> findPathToRoot();
 	vector<int> findPath(int id);

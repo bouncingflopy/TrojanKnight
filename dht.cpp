@@ -169,14 +169,18 @@ void DHT::calculateLevels() {
 	current_queue.push(nodes[0]);
 
 	while (!current_queue.empty()) {
-		shared_ptr<DHTNode> current_node = current_queue.front();
-		current_queue.pop();
+		while (!current_queue.empty()) {
+			shared_ptr<DHTNode> current_node = current_queue.front();
+			current_queue.pop();
 
-		current_node->level = level;
+			if (current_node->level != -1) continue;
 
-		for (shared_ptr<DHTConnection>& connection : current_node->connections) {
-			if (connection->a->level == -1) next_queue.push(connection->a);
-			if (connection->b->level == -1) next_queue.push(connection->b);
+			current_node->level = level;
+
+			for (shared_ptr<DHTConnection>& connection : current_node->connections) {
+				if (connection->a->level == -1) next_queue.push(connection->a);
+				if (connection->b->level == -1) next_queue.push(connection->b);
+			}
 		}
 
 		if (current_queue.empty()) {

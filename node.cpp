@@ -48,7 +48,7 @@ Node::Node() {
 		becomeRoot();
 	}
 
-	if (!is_root && rootConnection) {
+	if (!is_root) {
 		connect();
 	}
 
@@ -166,8 +166,19 @@ void Node::handleThread() {
 				handleMessage(rootConnection, message);
 			}
 		}
+
+		if (punchholeRC) {
+			if (punchholeRC->incoming_messages.size() > 0) {
+				string message = punchholeRC->incoming_messages.front();
+				punchholeRC->incoming_messages.pop();
+
+				handleMessage(punchholeRC, message);
+			}
+		}
 		
-		for (shared_ptr<Connection>& connection : connections) {
+		//for (shared_ptr<Connection>& connection : connections) {
+		for (int i = 0; i < connections.size(); i++) {
+			shared_ptr<Connection>& connection = connections[i];
 			if (!connection) continue; // stupid
 			if (connection->incoming_messages.size() > 0) {
 				string message = connection->incoming_messages.front();
@@ -198,22 +209,24 @@ int Node::pickNodeToConnect() {
 		nodes.push_back(node);
 	}
 
-	if (nodes.size() == 0) {
-		for (shared_ptr<DHTNode>& node : dht.nodes) {
-			if (find(present.begin(), present.end(), node->id) != present.end()) continue;
-			if (node->id == dht.nodes[0]->id) continue;
-			if (node->connections.size() > 3) continue;
+	if (connections.size() < 2) { // 2 or 1?
+		if (nodes.size() == 0) {
+			for (shared_ptr<DHTNode>& node : dht.nodes) {
+				if (find(present.begin(), present.end(), node->id) != present.end()) continue;
+				if (node->id == dht.nodes[0]->id) continue;
+				if (node->connections.size() > 3) continue;
 
-			nodes.push_back(node);
+				nodes.push_back(node);
+			}
 		}
-	}
 
-	if (nodes.size() == 0) {
-		for (shared_ptr<DHTNode>& node : dht.nodes) {
-			if (find(present.begin(), present.end(), node->id) != present.end()) continue;
-			if (node->id == dht.nodes[0]->id) continue;
+		if (nodes.size() == 0) {
+			for (shared_ptr<DHTNode>& node : dht.nodes) {
+				if (find(present.begin(), present.end(), node->id) != present.end()) continue;
+				if (node->id == dht.nodes[0]->id) continue;
 
-			nodes.push_back(node);
+				nodes.push_back(node);
+			}
 		}
 	}
 
@@ -249,14 +262,17 @@ void Node::manageConnections() { // make this on thread
 		int pick = pickNodeToConnect();
 		if (pick == -1) return;
 
-		cout << "connecting to " << to_string(pick) << endl;
+		connecting = true; // stupid
+		cout << to_string(id) << " -> " << to_string(pick) << endl;
 
-		if (connectToRoot()) {
+		if (connectToPunchholeRoot()) {
 			connecting_id = pick;
-			connecting = true;
 
 			string message = "rpnp\npunchhole request " + to_string(id) + " " + to_string(pick);
-			rootConnection->writeData(message); // no root connection error
+			punchholeRC->writeData(message);
+		}
+		else {
+			connecting = false;
 		}
 	}
 }
@@ -303,7 +319,10 @@ void Node::lookout() {
 		time_point now = chrono::high_resolution_clock::now();
 
 		vector<int> bad_ids;
-		for (shared_ptr<Connection>& connection : connections) {
+		//for (shared_ptr<Connection>& connection : connections) {
+		for (int i = 0; i < connections.size(); i++) {
+			shared_ptr<Connection>& connection = connections[i];
+			if (!connection) continue; // stupid
 			int time_passed = chrono::duration_cast<chrono::seconds>(now - connection->keepalive).count();
 			if (time_passed > KEEPALIVE_DETECTION) {
 				bad_ids.push_back(connection->id);
@@ -352,6 +371,10 @@ void Node::keepalive() {
 			rootConnection->writeData(message);
 		}
 
+		if (punchholeRC) {
+			punchholeRC->writeData(message);
+		}
+
 		this_thread::sleep_for(chrono::seconds(KEEPALIVE_FREQUENCY));
 	}
 }
@@ -370,9 +393,23 @@ bool Node::connectToRoot() {
 	}
 }
 
+bool Node::connectToPunchholeRoot() {
+	if (punchholeRC) return false;
+
+	string root = getDDNS();
+	punchholeRC = make_shared<Connection>(root, ROOT_PORT, 0);
+
+	if (punchholeRC->connected) return true;
+	else {
+		punchholeRC.reset();
+
+		return false;
+	}
+}
+
 void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
-	shared_ptr<Connection> connection = rootConnection;
-	rootConnection.reset();
+	shared_ptr<Connection> connection = punchholeRC;
+	punchholeRC.reset();
 
 	connection->change(target_ip, target_port, target_id);
 	
@@ -388,7 +425,7 @@ void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
 		string message = "rpnp\ndht connect " + to_string(id) + " " + to_string(target_id);
 		relay(dht.nodes[0]->id, message);
 		
-		cout << to_string(id) << " connected to " << to_string(target_id) << endl;
+		cout << to_string(id) << " == " << to_string(target_id) << endl;
 	}
 	else {
 		connection.reset();
@@ -521,10 +558,7 @@ void Node::disconnect(int target_id) {
 
 	if (is_root && connection) {
 		int port = connection->socket->local_endpoint().port();
-		port -= ROOT_PORT + 1;
-		if (port > 2) port = 2;
-
-		root_node->port_use[port] = false;
+		root_node->port_use[port - ROOT_PORT - 1] = false;
 	}
 
 	connection.reset();

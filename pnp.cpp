@@ -59,28 +59,30 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 		}
 		else if (words[0] == "punchhole") {
 			if (words[1] == "fail") {
-				rootConnection.reset();
+				cout << to_string(id) << "> -x> " << words[3] << endl;
+				punchholeRC.reset();
+				connecting = false;
 
 				manageConnections();
 			}
 			else if (words[1] == "invite") {
 				if (connecting && connecting_id == stoi(words[2])) continue;
 
-				if (rootConnection) {
-					string message = "rpnp\npunchhole fail " + words[2] + " " + to_string(id);
-					rootConnection->writeData(message);
+				if (punchholeRC) {
+					string message = "rpnp\npunchhole fail " + to_string(id) + " " + words[2];
+					punchholeRC->writeData(message);
 
 					continue;
 				}
-				else if (!connectToRoot()) {
-					string message = "rpnp\npunchhole fail " + words[2] + " " + to_string(id);
+				else if (!connectToPunchholeRoot()) {
+					string message = "rpnp\npunchhole fail " + to_string(id) + " " + words[2];
 					relay(dht.nodes[0]->id, message);
 
 					continue;
 				}
 
-				string message = "rpnp\npunchhole request " + words[2] + " " + to_string(id);
-				rootConnection->writeData(message);
+				string message = "rpnp\npunchhole request " + to_string(id) + " " + words[2];
+				punchholeRC->writeData(message);
 			}
 			else if (words[1] == "info") {
 				thread punchhole_thread([this, words]() {
@@ -90,11 +92,10 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 			}
 		}
 		else if (words[0] == "success") {
-			if (rootConnection) rootConnection.reset();
+			// add dht retry
 		}
 		else if (words[0] == "unsuccess") {
 			cout << "why is there an unsuccess, nothing should go wrong" << endl;
-			if (rootConnection) rootConnection.reset();
 		}
 		else if (words[0] == "broadcast") {
 			string broadcast = "";

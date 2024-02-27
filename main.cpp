@@ -73,35 +73,57 @@ static int generateRandom(int low, int high) {
     return distribution(gen);
 }
 
-int main() { // initialize board with connection from node that is the chess connection    
-    cout << "open wireshark" << endl;
-    // ip.src == 127.0.0.1 && ip.addr == 127.0.0.1 && (udp || icmp) && data != "keepalive" && data != "syn" && data != "ack"
-
+void fuzz() {
     vector<Node*> nodes;
-    string input;
-    
+
+    int time = generateRandom(10, 30);
+
     createNode(nodes);
     createNode(nodes);
 
     while (nodes.size() <= 3) {
-        //cin >> input;
-
-        if (input == "new" || generateRandom(1, 10) == 1) {
+        if (generateRandom(1, time) == 1) {
             createNode(nodes);
         }
-        /*else if (input == "print") {
+
+        this_thread::sleep_for(chrono::milliseconds(200));
+    }
+
+    this_thread::sleep_for(chrono::milliseconds(3000));
+}
+
+void dhtWindow() {
+
+}
+
+int main() { // initialize board with connection from node that is the chess connection    
+    cout << "open wireshark" << endl;
+    // ip.src == 127.0.0.1 && ip.addr == 127.0.0.1 && (udp || icmp) && data != "keepalive" && data != "syn" && data != "ack"
+
+    //fuzz(); return 0;
+
+    vector<Node*> nodes;
+    string input;
+
+    createNode(nodes);
+
+    thread window_thread = thread(&dhtWindow);
+
+    while (true) {
+        cin >> input;
+
+        if (input == "new") {
+            createNode(nodes);
+        }
+        else if (input == "print") {
             for (int i = 0; i < nodes.size(); i++) {
                 printConnections(nodes[i], i);
                 printDHT(nodes[i], i);
             }
         }
         else if (input == "exit") break;
-        else cout << "unknown command" << endl;*/
-
-        this_thread::sleep_for(chrono::milliseconds(100));
+        else cout << "unknown command" << endl;
     }
-
-    this_thread::sleep_for(chrono::milliseconds(3000));
 
     return 0;
 }
