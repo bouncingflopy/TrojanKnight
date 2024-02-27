@@ -4,6 +4,7 @@
 
 #include "node.h"
 #include "board.h"
+#include "dhtdisplay.h" // only for displaying dht
 
 //int main() {
 //    sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Chess", sf::Style::Titlebar | sf::Style::Close);
@@ -48,7 +49,7 @@
 //    return 0;
 //}
 
-void printConnections(Node* node, int i) {
+void printConnections(shared_ptr<Node> node, int i) {
     cout << "-------------------------------------------\nCONNECTIONS " << to_string(i) << endl;
     for (shared_ptr<Connection>& connection : node->connections) {
         cout << "connection: " << connection->ip << "::" << connection->port << ", connected? " << (connection->connected ? "yes" : "no") << endl;
@@ -56,14 +57,14 @@ void printConnections(Node* node, int i) {
     cout << "-------------------------------------------" << endl;
 }
 
-void printDHT(Node* node, int i) {
+void printDHT(shared_ptr<Node> node, int i) {
     cout << "**********************************************\nDHT " << to_string(i) << endl;
     cout << node->dht.toString();
     cout << "**********************************************" << endl;
 }
 
-void createNode(vector<Node*>& nodes) {
-    nodes.push_back(new Node());
+void createNode(vector<shared_ptr<Node>>& nodes) {
+    nodes.push_back(make_shared<Node>());
 }
 
 static int generateRandom(int low, int high) {
@@ -74,7 +75,7 @@ static int generateRandom(int low, int high) {
 }
 
 void fuzz() {
-    vector<Node*> nodes;
+    vector<shared_ptr<Node>> nodes;
 
     int time = generateRandom(10, 30);
 
@@ -92,22 +93,20 @@ void fuzz() {
     this_thread::sleep_for(chrono::milliseconds(3000));
 }
 
-void dhtWindow() {
-
-}
-
 int main() { // initialize board with connection from node that is the chess connection    
     cout << "open wireshark" << endl;
     // ip.src == 127.0.0.1 && ip.addr == 127.0.0.1 && (udp || icmp) && data != "keepalive" && data != "syn" && data != "ack"
 
     //fuzz(); return 0;
 
-    vector<Node*> nodes;
+    vector<shared_ptr<Node>> nodes;
     string input;
 
     createNode(nodes);
 
-    thread window_thread = thread(&dhtWindow);
+    thread window_thread = thread([&]() {
+        dhtDisplay(nodes[0]->dht);
+        });
 
     while (true) {
         cin >> input;

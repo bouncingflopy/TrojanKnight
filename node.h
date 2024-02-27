@@ -69,6 +69,14 @@ struct RelaySession {
 	RelaySession(int to, int from, int session);
 };
 
+// wan
+// >8 connections
+// leave
+// reroot
+// stop responding (only one connection)
+// relay response
+// node reconnect to network
+
 // add and implement private ip connection, only query written
 // what if node sends root dht update (connect and disconnect) but root is rerooting or doesnt get it?
 // root check no one takes ddns, if im empty connect to them (mid reroot)

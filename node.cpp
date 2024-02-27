@@ -355,6 +355,8 @@ void Node::lookout() {
 			}
 		}
 
+		if (dht.nodes.size() > 0 && dht.nodes[0]->id == id && !is_root) becomeRoot();
+
 		this_thread::sleep_for(chrono::milliseconds(LOOKOUT_CHECK_FREQUENCY));
 	}
 }
@@ -536,7 +538,7 @@ void Node::relay(int target_id, string payload) {
 
 void Node::disconnect(int target_id) {
 	string message = "pnp\ndisconnect " + to_string(id);
-	shared_ptr<Connection> connection = nullptr;
+	shared_ptr<Connection> connection;
 
 	for (int i = 0; i < connections.size(); i++) {
 		if (connections[i]->id == target_id) {

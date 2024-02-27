@@ -59,7 +59,6 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 		}
 		else if (words[0] == "punchhole") {
 			if (words[1] == "fail") {
-				cout << to_string(id) << "> -x> " << words[3] << endl;
 				punchholeRC.reset();
 				connecting = false;
 
