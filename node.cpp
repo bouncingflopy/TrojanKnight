@@ -39,8 +39,11 @@ Node::Node() {
 	string ip = getIP();
 	string root = getDDNS();
 	
+	cout << "IP: " << ip << endl;
+	cout << "Root: " << root << endl;
+
 	// try to connect, if cant, become root
-	if (ip == root && false) { // lan
+	if (ip == root) {
 		becomeRoot();
 	}
 	else if (!connectToRoot()) {
@@ -58,9 +61,6 @@ Node::Node() {
 }
 
 string Node::getIP() {
-	// lan
-	return "127.0.0.1";
-
 	CURL* curl;
 	CURLcode res;
 	string response;
@@ -83,9 +83,6 @@ string Node::getIP() {
 }
 
 string Node::getDDNS() {
-	// lan
-	return "127.0.0.1";
-
 	CURL* curl;
 	CURLcode res;
 	string response;
@@ -115,9 +112,6 @@ string Node::getDDNS() {
 }
 
 void Node::setDDNS(string ip) {
-	// lan
-	return;
-
 	CURL* curl;
 	CURLcode res;
 

@@ -76,6 +76,7 @@ struct RelaySession {
 // stop responding (only one connection)
 // relay response
 // node reconnect to network
+// node with root relay to root node
 
 // add and implement private ip connection, only query written
 // what if node sends root dht update (connect and disconnect) but root is rerooting or doesnt get it?

@@ -94,13 +94,20 @@ void Connection::connect(asio::ip::udp::endpoint e) {
 	socket->cancel();
 
 	endpoint = e;
-	socket->connect(endpoint);
 
-	asyncReadData();
-	handshake();
+	error_code ec;
+	socket->connect(endpoint, ec);
+	
+	if (!ec) {
+		asyncReadData();
+		handshake();
 
-	if (connected) {
-		keepalive = chrono::high_resolution_clock::now();
+		if (connected) {
+			keepalive = chrono::high_resolution_clock::now();
+		}
+	}
+	else {
+		cout << ec.message() << endl;
 	}
 }
 
