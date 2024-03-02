@@ -111,9 +111,13 @@ void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint,
 		port = ROOT_PORT + 2;
 		port_use[1] = true;
 	}
-	else {
+	else if (!port_use[2]) {
 		port = ROOT_PORT + 3;
 		port_use[2] = true;
+	}
+	else {
+		cout << "bad simulated punchhole root port chosen" << endl; // debug // error 7
+		return;
 	}
 
 	string message = "pnp\npunchhole info " + to_string(node->id) + " " + dht.nodes[0]->ip + " " + to_string(port);

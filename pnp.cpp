@@ -69,12 +69,6 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 			else if (words[1] == "invite") {
 				if (connecting && connecting_id == stoi(words[2])) continue;
 
-				if (punchholeRC) {
-					string message = "rpnp\npunchhole fail " + to_string(id) + " " + words[2];
-					punchholeRC->writeData(message);
-
-					continue;
-				}
 				else if (!connectToPunchholeRoot()) {
 					string message = "rpnp\npunchhole fail " + to_string(id) + " " + words[2];
 					relay(dht.nodes[0]->id, message);
@@ -196,15 +190,15 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 
 void RootNode::handleMessage(Message message) {
 	vector<string> lines;
-	istringstream lineStream(message.message); // stupid
-	string lineTemp;
-	while (getline(lineStream, lineTemp, '\n')) lines.push_back(lineTemp);
+	istringstream stream(message.message);
+	string temp;
+	while (getline(stream, temp, '\n')) lines.push_back(temp);
 
 	for (string line : lines) {
 		vector<string> words;
-		istringstream wordStream(line);
-		string wordTemp;
-		while (getline(wordStream, wordTemp, ' ')) words.push_back(wordTemp);
+		istringstream stream(line);
+		string temp;
+		while (getline(stream, temp, ' ')) words.push_back(temp);
 
 		if (words[0] == "rpnp") {
 			continue;
@@ -405,15 +399,15 @@ void Node::handleMessage(string message) {
 
 void RootNode::handleMessage(string message) {
 	vector<string> lines;
-	istringstream lineStream(message); // stupid
-	string lineTemp;
-	while (getline(lineStream, lineTemp, '\n')) lines.push_back(lineTemp);
+	istringstream stream(message);
+	string temp;
+	while (getline(stream, temp, '\n')) lines.push_back(temp);
 
 	for (string line : lines) {
 		vector<string> words;
-		istringstream wordStream(line);
-		string wordTemp;
-		while (getline(wordStream, wordTemp, ' ')) words.push_back(wordTemp);
+		istringstream stream(line);
+		string temp;
+		while (getline(stream, temp, ' ')) words.push_back(temp);
 
 		if (words[0] == "rpnp") {
 			continue;
@@ -590,7 +584,7 @@ void RootNode::handleMessage(RelaySession relay_session, shared_ptr<Connection> 
 				for (int i = 0; i < punchhole_pairs.size(); i++) {
 					if (failed_pair == punchhole_pairs[i]) {
 						requested_endpoint = punchhole_pairs[i].requested_endpoint;
-						punchhole_pairs.erase(punchhole_pairs.begin() + i);
+						punchhole_pairs.erase(punchhole_pairs.begin() + i); // error 4 (out of range)
 						break;
 					}
 				}

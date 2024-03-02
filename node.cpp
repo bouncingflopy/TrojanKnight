@@ -167,21 +167,40 @@ void Node::handleThread() {
 			}
 		}
 
-		if (punchholeRC) {
-			if (punchholeRC->incoming_messages.size() > 0) {
-				string message = punchholeRC->incoming_messages.front();
-				punchholeRC->incoming_messages.pop();
+		//if (punchholeRC) {
+		//	if (punchholeRC->incoming_messages.size() > 0) {
+		//		string message = punchholeRC->incoming_messages.front();
+		//		punchholeRC->incoming_messages.pop(); // error 3
 
-				handleMessage(punchholeRC, message);
+		//		handleMessage(punchholeRC, message);
+		//	}
+		//}
+		shared_ptr<Connection> copied_punchholeRC(punchholeRC); // dont like this
+		if (copied_punchholeRC) {
+			if (copied_punchholeRC->incoming_messages.size() > 0) {
+				string message = copied_punchholeRC->incoming_messages.front();
+				copied_punchholeRC->incoming_messages.pop(); // error 3
+
+				handleMessage(copied_punchholeRC, message);
 			}
 		}
 		
 		//for (shared_ptr<Connection>& connection : connections) {
-		for (int i = 0; i < connections.size(); i++) {
-			shared_ptr<Connection> connection = connections[i]; // error
-			if (!connection) continue; // stupid
+		//for (int i = 0; i < connections.size(); i++) {
+		//	shared_ptr<Connection> connection = connections[i]; // error 1
+		//	if (!connection) continue; // stupid 1
+		vector<shared_ptr<Connection>> copied_connections;
+		for (shared_ptr<Connection> connection : connections) {
+			if (connection) copied_connections.push_back(shared_ptr<Connection>(connection));
+		}
+		for (shared_ptr<Connection>& connection : copied_connections) {
 			if (connection->incoming_messages.size() > 0) {
 				string message = connection->incoming_messages.front();
+
+				if (message == "pnp\nrelay") {
+					cout << "pause" << endl; // error 6
+				}
+
 				connection->incoming_messages.pop();
 
 				handleMessage(connection, message);
@@ -266,9 +285,9 @@ void Node::manageConnections() { // make this on thread
 		int pick = pickNodeToConnect();
 		if (pick == -1) return;
 
-		connecting = true; // stupid
 		cout << to_string(id) << " -> " << to_string(pick) << endl;
 
+		connecting = true;
 		if (connectToPunchholeRoot()) {
 			connecting_id = pick;
 
@@ -287,7 +306,7 @@ void Node::rerootCheck() {
 	while (dht.nodes.size() >= 2 && dht.nodes[1]->id == id && !left) { // lan
 		Connection connection(dht.nodes[0]->ip, ROOT_PORT, dht.nodes[0]->id);
 		
-		if (!connection.connected && !is_root) { // stupid
+		if (!connection.connected && !is_root) {
 			dht.deleteNode(dht.nodes[0]->id);
 			setDDNS(dht.nodes[0]->ip);
 			becomeRoot();
@@ -308,9 +327,14 @@ void Node::lookout() {
 
 		vector<int> bad_ids;
 		//for (shared_ptr<Connection>& connection : connections) {
-		for (int i = 0; i < connections.size(); i++) {
-			shared_ptr<Connection> connection = connections[i]; // error
-			if (!connection) continue; // stupid
+		//for (int i = 0; i < connections.size(); i++) {
+		//	shared_ptr<Connection> connection = connections[i]; // error 1
+		//	if (!connection) continue; // stupid 1
+		vector<shared_ptr<Connection>> copied_connections;
+		for (shared_ptr<Connection> connection : connections) {
+			if (connection) copied_connections.push_back(shared_ptr<Connection>(connection));
+		}
+		for (shared_ptr<Connection>& connection : copied_connections) {
 			int time_passed = chrono::duration_cast<chrono::seconds>(now - connection->keepalive).count();
 			if (time_passed > KEEPALIVE_DETECTION) {
 				bad_ids.push_back(connection->id);
@@ -371,14 +395,20 @@ void Node::keepalive() {
 	while (!left) { // lan
 		string message = "keepalive";
 
-		for (shared_ptr<Connection>& connection : connections) {
-			if (connection) {
-				if (connection->connected) { // stupid
-					if (find(block.begin(), block.end(), connection->id) == block.end()) { // lan
-						connection->writeData(message); // stupid // error
-					}
+		vector<shared_ptr<Connection>> copied_connections;
+		for (shared_ptr<Connection> connection : connections) {
+			if (connection) copied_connections.push_back(shared_ptr<Connection>(connection));
+		}
+		for (shared_ptr<Connection>& connection : copied_connections) {
+			//if (connection) {
+			if (connection->connected) { // stupid 2
+				if (find(block.begin(), block.end(), connection->id) == block.end()) { // lan
+					connection->writeData(message); // stupid 2 // error 2
 				}
 			}
+			//}
+
+			//continue; // debug
 		}
 
 		if (rootConnection) {

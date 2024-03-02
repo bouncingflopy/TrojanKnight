@@ -49,17 +49,27 @@ string DHT::toString() {
 	dht += to_string(version) + "\n-\n";
 
 	//for (shared_ptr<DHTNode>& node : nodes) {
-	for (int i = 0; i < nodes.size(); i++) {
-		shared_ptr<DHTNode> node = nodes[i];
-		if (!node) continue; // stupid
+	//for (int i = 0; i < nodes.size(); i++) {
+	//	shared_ptr<DHTNode> node = nodes[i];
+	//	if (!node) continue; // stupid 1
+	vector<shared_ptr<DHTNode>> copied_nodes;
+	for (shared_ptr<DHTNode> node : nodes) {
+		if (node) copied_nodes.push_back(shared_ptr<DHTNode>(node));
+	}
+	for (shared_ptr<DHTNode>& node : copied_nodes) {
 		dht += to_string(node->id) + " " + to_string(node->level) + " " + node->ip + "\n";
 	}
 	dht += "-\n";
 
 	//for (shared_ptr<DHTConnection>& connection : connections) {
-	for (int i = 0; i < connections.size(); i++) {
-		shared_ptr<DHTConnection> connection = connections[i];
-		if (!connection) continue; // stupid
+	//for (int i = 0; i < connections.size(); i++) {
+	//	shared_ptr<DHTConnection> connection = connections[i];
+	//	if (!connection) continue; // stupid 1
+	vector<shared_ptr<DHTConnection>> copied_connections;
+	for (shared_ptr<DHTConnection> connection : connections) {
+		if (connection) copied_connections.push_back(shared_ptr<DHTConnection>(connection));
+	}
+	for (shared_ptr<DHTConnection>& connection : copied_connections) {
 		dht += to_string(connection->a->id) + " " + to_string(connection->b->id) + "\n";
 	}
 
@@ -105,7 +115,7 @@ bool DHT::deleteNode(int id) {
 		if (id == nodes[i]->id) {
 			vector<shared_ptr<DHTConnection>> copied_connections = nodes[i]->connections;
 			for (shared_ptr<DHTConnection> connection : copied_connections) {
-				if (connection) deleteConnection(connection); // stupid
+				if (connection) deleteConnection(connection);
 			}
 
 			nodes.erase(nodes.begin() + i);
@@ -208,7 +218,7 @@ void DHT::calculateLevels() {
 		}
 	}
 
-	current_queue = queue<shared_ptr<DHTNode>>(); // stupid
+	current_queue = queue<shared_ptr<DHTNode>>();
 	next_queue = queue<shared_ptr<DHTNode>>();
 }
 

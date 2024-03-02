@@ -74,20 +74,25 @@ static int generateRandom(int low, int high) {
     return distribution(gen);
 }
 
-void fuzz() {
+void fuzz(int amount) {
     vector<shared_ptr<Node>> nodes;
 
-    int time = generateRandom(10, 30);
+    int time = generateRandom(10, 20);
 
     createNode(nodes);
+
+    thread window_thread = thread([&]() {
+        dhtDisplay(nodes);
+        });
+
     createNode(nodes);
 
-    while (nodes.size() <= 3) {
+    while (nodes.size() <= amount) {
         if (generateRandom(1, time) == 1) {
             createNode(nodes);
         }
 
-        this_thread::sleep_for(chrono::milliseconds(200));
+        this_thread::sleep_for(chrono::milliseconds(250));
     }
 
     this_thread::sleep_for(chrono::milliseconds(3000));
@@ -97,7 +102,7 @@ void lan_main() {
     cout << "open wireshark" << endl;
     // ip.src == 127.0.0.1 && ip.addr == 127.0.0.1 && (udp || icmp) && data != "keepalive" && data != "syn" && data != "ack"
 
-    //fuzz(); return 0;
+    fuzz(20); return;
 
     vector<shared_ptr<Node>> nodes;
     string input;

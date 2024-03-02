@@ -126,7 +126,10 @@ OpenConnection::OpenConnection() {
 }
 
 void OpenConnection::writeData(asio::ip::udp::endpoint endpoint, string data) {
-	socket->send_to(asio::buffer(data.data(), data.size()), endpoint);
+	error_code ec;
+	socket->send_to(asio::buffer(data.data(), data.size()), endpoint, 0, ec);
+
+	if (ec) cout << "error from openconnection: " << ec.message() << endl; // debug // error 5
 }
 
 bool OpenConnection::checkNodeProtocol(string data) {

@@ -75,8 +75,8 @@ struct RelaySession {
 };
 
 // wan
-// errors
-// stupids
+// error; stupid; -> mutex
+// wrongful reconnect after reroot with 2 nodes
 
 // add and implement private ip connection, only query written
 // what if node sends root dht update (connect and disconnect) but root is rerooting or doesnt get it?
