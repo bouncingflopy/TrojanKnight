@@ -49,6 +49,8 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 				reroot_thread = make_shared<thread>(&Node::rerootCheck, this);
 			}
 
+			rootConnection.reset();
+
 			manageConnections();
 
 			break;
@@ -91,10 +93,12 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 			}
 		}
 		else if (words[0] == "success") {
+			rootConnection.reset();
 			// add dht retry
 		}
 		else if (words[0] == "unsuccess") {
 			cout << "why is there an unsuccess, nothing should go wrong" << endl;
+			rootConnection.reset();
 		}
 		else if (words[0] == "broadcast") {
 			string broadcast = "";
@@ -167,11 +171,21 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 						}
 						else {
 							string response = "pnp\nrelay response " + to_string(session) + "\n" + relay_message;
+
+							for (int i = 0; i < connections.size(); i++) {
+								shared_ptr<Connection> connection = connections[i];
+								if (connection && connection->id == relay_session.from) {
+									connection->writeData(response);
+									break;
+								}
+							}
 						}
 
 						break;
 					}
 				}
+
+				break;
 			}
 		}
 		else if (words[0] == "disconnect") {
@@ -385,6 +399,45 @@ void Node::handleMessage(string message) {
 			}
 
 			break;
+		}
+	}
+}
+
+void RootNode::handleMessage(string message) {
+	vector<string> lines;
+	istringstream lineStream(message); // stupid
+	string lineTemp;
+	while (getline(lineStream, lineTemp, '\n')) lines.push_back(lineTemp);
+
+	for (string line : lines) {
+		vector<string> words;
+		istringstream wordStream(line);
+		string wordTemp;
+		while (getline(wordStream, wordTemp, ' ')) words.push_back(wordTemp);
+
+		if (words[0] == "rpnp") {
+			continue;
+		}
+
+		if (words[0] == "dht") {
+			if (words[1] == "connect") {
+				int a = stoi(words[2]);
+				int b = stoi(words[3]);
+				shared_ptr<DHTConnection> connection = make_shared<DHTConnection>(dht.getNodeFromId(a), dht.getNodeFromId(b));
+
+				if (connection->a->id == -1 || connection->b->id == -1) continue; // no feedback
+
+				if (dht.addConnection(connection)) changedDHT();
+			}
+			else if (words[1] == "disconnect") {
+				int a = stoi(words[2]);
+				int b = stoi(words[3]);
+				shared_ptr<DHTConnection> connection = make_shared<DHTConnection>(dht.getNodeFromId(a), dht.getNodeFromId(b));
+
+				if (connection->a->id == -1 || connection->b->id == -1)  continue; // no feedback
+
+				if (dht.deleteConnection(connection)) changedDHT();
+			}
 		}
 	}
 }

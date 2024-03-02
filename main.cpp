@@ -6,7 +6,7 @@
 #include "board.h"
 #include "dhtdisplay.h" // only for displaying dht
 
-//int main() {
+//int main() { // initialize board with connection from node that is the chess connection
 //    sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Chess", sf::Style::Titlebar | sf::Style::Close);
 //    Board* board = new Board(1);
 //
@@ -93,44 +93,75 @@ void fuzz() {
     this_thread::sleep_for(chrono::milliseconds(3000));
 }
 
-//int main() { // initialize board with connection from node that is the chess connection    
-//    cout << "open wireshark" << endl;
-//    // ip.src == 127.0.0.1 && ip.addr == 127.0.0.1 && (udp || icmp) && data != "keepalive" && data != "syn" && data != "ack"
-//
-//    //fuzz(); return 0;
-//
-//    vector<shared_ptr<Node>> nodes;
-//    string input;
-//
-//    createNode(nodes);
-//
-//    thread window_thread = thread([&]() {
-//        dhtDisplay(nodes[0]->dht);
-//        });
-//
-//    while (true) {
-//        cin >> input;
-//
-//        if (input == "new") {
-//            createNode(nodes);
-//        }
-//        else if (input == "print") {
-//            for (int i = 0; i < nodes.size(); i++) {
-//                printConnections(nodes[i], i);
-//                printDHT(nodes[i], i);
-//            }
-//        }
-//        else if (input == "exit") break;
-//        else cout << "unknown command" << endl;
-//    }
-//
-//    return 0;
-//}
+void lan_main() {
+    cout << "open wireshark" << endl;
+    // ip.src == 127.0.0.1 && ip.addr == 127.0.0.1 && (udp || icmp) && data != "keepalive" && data != "syn" && data != "ack"
 
-int main() { // initialize board with connection from node that is the chess connection    
+    //fuzz(); return 0;
+
+    vector<shared_ptr<Node>> nodes;
+    string input;
+
+    createNode(nodes);
+
+    thread window_thread = thread([&]() {
+        dhtDisplay(nodes);
+        });
+
+    while (true) {
+        cin >> input;
+
+        if (input == "new") {
+            createNode(nodes);
+        }
+        else if (input == "print") {
+            for (int i = 0; i < nodes.size(); i++) {
+                printConnections(nodes[i], i);
+                printDHT(nodes[i], i);
+            }
+        }
+        else if (input == "leave") {
+            cin >> input;
+            
+            shared_ptr<Node> node;
+            for (int i = 0; i < nodes.size(); i++) {
+                if (nodes[i]->id == stoi(input)) node = nodes[i];
+            }
+
+            node->leave();
+        }
+        else if (input == "disconnect") {
+            cin >> input;
+            
+            shared_ptr<Node> node;
+            for (int i = 0; i < nodes.size(); i++) {
+                if (nodes[i]->id == stoi(input)) node = nodes[i];
+            }
+
+            cin >> input;
+
+            node->stopListenning(stoi(input));
+        }
+        else if (input == "reconnect") {
+            cin >> input;
+
+            for (int i = 0; i < nodes.size(); i++) {
+                nodes[i]->stopListenning(stoi(input));
+            }
+        }
+        else if (input == "exit") break;
+        else cout << "unknown command" << endl;
+    }
+}
+
+void wan_main() {
     shared_ptr<Node> node = make_shared<Node>();
 
     dhtDisplay(node->dht);
+}
+
+int main() {
+    lan_main();
 
     return 0;
 }

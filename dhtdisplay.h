@@ -9,6 +9,7 @@
 
 using namespace std;
 
+void dhtDisplay(vector<shared_ptr<Node>>& nodes);
 void dhtDisplay(const DHT& dht);
 
 #endif

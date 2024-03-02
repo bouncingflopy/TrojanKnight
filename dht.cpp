@@ -48,12 +48,18 @@ string DHT::toString() {
 	
 	dht += to_string(version) + "\n-\n";
 
-	for (shared_ptr<DHTNode>& node : nodes) {
+	//for (shared_ptr<DHTNode>& node : nodes) {
+	for (int i = 0; i < nodes.size(); i++) {
+		shared_ptr<DHTNode> node = nodes[i];
+		if (!node) continue; // stupid
 		dht += to_string(node->id) + " " + to_string(node->level) + " " + node->ip + "\n";
 	}
 	dht += "-\n";
 
-	for (shared_ptr<DHTConnection>& connection : connections) {
+	//for (shared_ptr<DHTConnection>& connection : connections) {
+	for (int i = 0; i < connections.size(); i++) {
+		shared_ptr<DHTConnection> connection = connections[i];
+		if (!connection) continue; // stupid
 		dht += to_string(connection->a->id) + " " + to_string(connection->b->id) + "\n";
 	}
 
@@ -61,6 +67,8 @@ string DHT::toString() {
 }
 
 bool DHT::addNode(shared_ptr<DHTNode> node) {
+	if (node->id == -1) return false;
+
 	for (int i = 0; i < nodes.size(); i++) {
 		if (*node == *nodes[i]) {
 			return false;
@@ -72,6 +80,8 @@ bool DHT::addNode(shared_ptr<DHTNode> node) {
 }
 
 bool DHT::addConnection(shared_ptr<DHTConnection> connection) {
+	if (connection->a->id == -1 || connection->b->id == -1) return false;
+
 	for (int i = 0; i < connections.size(); i++) {
 		if (*connection == *connections[i]) {
 			return false;
@@ -89,10 +99,13 @@ bool DHT::addConnection(shared_ptr<DHTConnection> connection) {
 }
 
 bool DHT::deleteNode(int id) {
+	if (id == -1) return false;
+
 	for (int i = 0; i < nodes.size(); i++) {
 		if (id == nodes[i]->id) {
-			for (shared_ptr<DHTConnection>& connection : nodes[i]->connections) {
-				deleteConnection(connection);
+			vector<shared_ptr<DHTConnection>> copied_connections = nodes[i]->connections;
+			for (shared_ptr<DHTConnection> connection : copied_connections) {
+				if (connection) deleteConnection(connection); // stupid
 			}
 
 			nodes.erase(nodes.begin() + i);
@@ -105,6 +118,8 @@ bool DHT::deleteNode(int id) {
 }
 
 bool DHT::deleteConnection(shared_ptr<DHTConnection> connection) {
+	if (connection->a->id == -1 || connection->b->id == -1) return false;
+
 	for (int i = 0; i < connections.size(); i++) {
 		if (*connection == *connections[i]) {
 			vector<shared_ptr<DHTConnection>>& a_connections = connections[i]->a->connections;

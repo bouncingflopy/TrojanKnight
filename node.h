@@ -20,12 +20,13 @@ class Node {
 public:
 	int id = -1;
 	vector<shared_ptr<Connection>> connections;
-	shared_ptr<Connection> rootConnection;
-	// close rootConnection after inactive time
+	shared_ptr<Connection> rootConnection; // close rootConnection after inactive time
 	shared_ptr<Connection> punchholeRC;
+	time_point punchholeRC_creation;
 	bool is_root = false;
 	bool is_reroot = false;
 	bool connecting = false;
+	bool in_network = false;
 	int connecting_id = -1;
 	shared_ptr<RootNode> root_node;
 	thread handle_thread;
@@ -34,6 +35,8 @@ public:
 	shared_ptr<thread> reroot_thread;
 	DHT dht;
 	vector<RelaySession> relay_sessions;
+	bool left = false; // lan
+	vector<int> block; // lan
 
 	Node();
 	string getIP();
@@ -58,6 +61,8 @@ public:
 	vector<int> findPath(int id);
 	void relay(int target_id, string payload);
 	void disconnect(int id);
+	void leave(); // lan
+	void stopListenning(int target_id); // lan
 };
 
 struct RelaySession {
@@ -70,18 +75,13 @@ struct RelaySession {
 };
 
 // wan
-// >8 connections
-// leave
-// reroot
-// stop responding (only one connection)
-// relay response
-// node reconnect to network
-// node with root relay to root node
+// errors
+// stupids
 
 // add and implement private ip connection, only query written
 // what if node sends root dht update (connect and disconnect) but root is rerooting or doesnt get it?
 // root check no one takes ddns, if im empty connect to them (mid reroot)
-// make root connection a distributed shared_ptr
+// add keepalive for rootconnection and punchholerc?
 
 /*
 
@@ -132,7 +132,7 @@ ack
 // make all pointers shared_ptrs in chess
 // make chess board size based on computer size
 // endcryption public key private key
-// node rootnode connection openconnection destrcutors for closing threads and queues
+// node rootnode connection openconnection destructors for closing threads and queues
 
 class RootNode {
 public:
@@ -143,6 +143,7 @@ public:
 	DHT dht;
 	vector<PunchholePair> punchhole_pairs;
 	vector<bool> port_use = {false, false, false};
+	bool left = false; // lan
 	
 	RootNode();
 	RootNode(shared_ptr<Node> n);
@@ -150,12 +151,14 @@ public:
 	void overtakeDHT();
 	void handleThread();
 	void handleMessage(Message message);
+	void handleMessage(string message);
 	void handleMessage(shared_ptr<Connection> connection, string message);
 	void handleMessage(RelaySession relay_session, shared_ptr<Connection> connection, string message);
 	void changedDHT();
 	void holepunchConnect(asio::ip::udp::endpoint a_endpoint, asio::ip::udp::endpoint b_endpoint, int a_id, int b_id);
 	void detachedCheck();
 	void simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint, int target_id);
+	void leave(); // lan
 };
 
 struct PunchholePair {

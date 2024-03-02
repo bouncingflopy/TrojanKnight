@@ -39,11 +39,11 @@ Node::Node() {
 	string ip = getIP();
 	string root = getDDNS();
 	
-	cout << "IP: " << ip << endl;
-	cout << "Root: " << root << endl;
+	//cout << "IP: " << ip << endl; // wan
+	//cout << "Root: " << root << endl; // wan
 
 	// try to connect, if cant, become root
-	if (ip == root) {
+	if (ip == root && false) { // lan
 		becomeRoot();
 	}
 	else if (!connectToRoot()) {
@@ -61,6 +61,8 @@ Node::Node() {
 }
 
 string Node::getIP() {
+	return "127.0.0.1"; // lan
+
 	CURL* curl;
 	CURLcode res;
 	string response;
@@ -83,6 +85,8 @@ string Node::getIP() {
 }
 
 string Node::getDDNS() {
+	return "127.0.0.1"; // lan
+
 	CURL* curl;
 	CURLcode res;
 	string response;
@@ -112,6 +116,8 @@ string Node::getDDNS() {
 }
 
 void Node::setDDNS(string ip) {
+	return; // lan
+
 	CURL* curl;
 	CURLcode res;
 
@@ -151,7 +157,7 @@ void Node::connect() {
 }
 
 void Node::handleThread() {
-	while (true) {
+	while (!left) { // lan
 		if (rootConnection) {
 			if (rootConnection->incoming_messages.size() > 0) {
 				string message = rootConnection->incoming_messages.front();
@@ -172,7 +178,7 @@ void Node::handleThread() {
 		
 		//for (shared_ptr<Connection>& connection : connections) {
 		for (int i = 0; i < connections.size(); i++) {
-			shared_ptr<Connection>& connection = connections[i];
+			shared_ptr<Connection> connection = connections[i]; // error
 			if (!connection) continue; // stupid
 			if (connection->incoming_messages.size() > 0) {
 				string message = connection->incoming_messages.front();
@@ -190,14 +196,18 @@ int Node::pickNodeToConnect() {
 	// random implementation, this defines the structure of the network
 	// keep some randomness to not get stuck in a loop if someones not working
 	vector<shared_ptr<DHTNode>> nodes;
-	vector<int> present = {id};
+	vector<int> bad = {id};
 
 	for (shared_ptr<Connection>& connection : connections) {
-		present.push_back(connection->id);
+		bad.push_back(connection->id);
 	}
 
 	for (shared_ptr<DHTNode>& node : dht.nodes) {
-		if (find(present.begin(), present.end(), node->id) != present.end()) continue;
+		if (node->level == -1) bad.push_back(node->id);
+	}
+
+	for (shared_ptr<DHTNode>& node : dht.nodes) {
+		if (find(bad.begin(), bad.end(), node->id) != bad.end()) continue;
 		if (node->connections.size() >= 3) continue;
 
 		nodes.push_back(node);
@@ -206,7 +216,7 @@ int Node::pickNodeToConnect() {
 	if (connections.size() < 2) { // 2 or 1?
 		if (nodes.size() == 0) {
 			for (shared_ptr<DHTNode>& node : dht.nodes) {
-				if (find(present.begin(), present.end(), node->id) != present.end()) continue;
+				if (find(bad.begin(), bad.end(), node->id) != bad.end()) continue;
 				if (node->id == dht.nodes[0]->id) continue;
 				if (node->connections.size() > 3) continue;
 
@@ -216,7 +226,7 @@ int Node::pickNodeToConnect() {
 
 		if (nodes.size() == 0) {
 			for (shared_ptr<DHTNode>& node : dht.nodes) {
-				if (find(present.begin(), present.end(), node->id) != present.end()) continue;
+				if (find(bad.begin(), bad.end(), node->id) != bad.end()) continue;
 				if (node->id == dht.nodes[0]->id) continue;
 
 				nodes.push_back(node);
@@ -265,7 +275,7 @@ void Node::manageConnections() { // make this on thread
 			string message = "rpnp\npunchhole request " + to_string(id) + " " + to_string(pick);
 			punchholeRC->writeData(message);
 		}
-		else {
+		else if (!punchholeRC) {
 			connecting = false;
 		}
 	}
@@ -274,31 +284,15 @@ void Node::manageConnections() { // make this on thread
 void Node::rerootCheck() {
 	is_reroot = true;
 
-	while (dht.nodes.size() >= 2 && dht.nodes[1]->id == id) {
+	while (dht.nodes.size() >= 2 && dht.nodes[1]->id == id && !left) { // lan
 		Connection connection(dht.nodes[0]->ip, ROOT_PORT, dht.nodes[0]->id);
 		
-		if (!connection.connected) {
-			vector<int> root_connections;
-
-			for (shared_ptr<DHTConnection>& dht_connection : dht.nodes[0]->connections) {
-				if (dht_connection->a->id == dht.nodes[0]->id) root_connections.push_back(dht_connection->b->id);
-				else  root_connections.push_back(dht_connection->a->id);
-			}
-
+		if (!connection.connected && !is_root) { // stupid
 			dht.deleteNode(dht.nodes[0]->id);
-
-			string message = "pnp\ndisconnect " + to_string(dht.nodes[0]->id);
-			for (int& root_connection : root_connections) {
-				if (root_connection == id) {
-					disconnect(dht.nodes[0]->id);
-					continue;
-				}
-
-				relay(root_connection, message);
-			}
-
+			setDDNS(dht.nodes[0]->ip);
 			becomeRoot();
 
+			is_reroot = false;
 			return;
 		}
 
@@ -309,13 +303,13 @@ void Node::rerootCheck() {
 }
 
 void Node::lookout() {
-	while (true) {
+	while (!left) { // lan
 		time_point now = chrono::high_resolution_clock::now();
 
 		vector<int> bad_ids;
 		//for (shared_ptr<Connection>& connection : connections) {
 		for (int i = 0; i < connections.size(); i++) {
-			shared_ptr<Connection>& connection = connections[i];
+			shared_ptr<Connection> connection = connections[i]; // error
 			if (!connection) continue; // stupid
 			int time_passed = chrono::duration_cast<chrono::seconds>(now - connection->keepalive).count();
 			if (time_passed > KEEPALIVE_DETECTION) {
@@ -336,9 +330,24 @@ void Node::lookout() {
 			}
 		}
 
+		if (punchholeRC && connecting) {
+			int time_passed = chrono::duration_cast<chrono::seconds>(now - punchholeRC_creation).count();
+			if (time_passed > PUNCHHOLERC_TTL) {
+				punchholeRC.reset();
+				connecting = false;
+
+				//manageConnections();
+			}
+		}
+
 		if (connections.size() == 0 && !is_root) {
-			if (!rootConnection && !connecting) {
-				if (connectToRoot()) {
+			if (in_network) {
+				in_network = false;
+				rootConnection.reset();
+				punchholeRC.reset();
+				connecting = false;
+
+				if (connectToRoot() && !left) { // lan
 					if (id != -1) {
 						string message = "rpnp\ndht leave " + to_string(id);
 						rootConnection->writeData(message);
@@ -349,18 +358,27 @@ void Node::lookout() {
 			}
 		}
 
-		if (dht.nodes.size() > 0 && dht.nodes[0]->id == id && !is_root) becomeRoot();
+		if (dht.nodes.size() > 0 && dht.nodes[0]->id == id && !is_root) {
+			setDDNS(dht.nodes[0]->ip);
+			becomeRoot();
+		}
 
 		this_thread::sleep_for(chrono::milliseconds(LOOKOUT_CHECK_FREQUENCY));
 	}
 }
 
 void Node::keepalive() {
-	while (true) {
+	while (!left) { // lan
 		string message = "keepalive";
 
 		for (shared_ptr<Connection>& connection : connections) {
-			if (connection && connection->connected) connection->writeData(message); // stupid
+			if (connection) {
+				if (connection->connected) { // stupid
+					if (find(block.begin(), block.end(), connection->id) == block.end()) { // lan
+						connection->writeData(message); // stupid // error
+					}
+				}
+			}
 		}
 
 		if (rootConnection) {
@@ -395,7 +413,11 @@ bool Node::connectToPunchholeRoot() {
 	string root = getDDNS();
 	punchholeRC = make_shared<Connection>(root, ROOT_PORT, 0);
 
-	if (punchholeRC->connected) return true;
+	if (punchholeRC->connected) {
+		punchholeRC_creation = chrono::high_resolution_clock::now();
+
+		return true;
+	}
 	else {
 		punchholeRC.reset();
 
@@ -422,6 +444,8 @@ void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
 		relay(dht.nodes[0]->id, message);
 		
 		cout << to_string(id) << " == " << to_string(target_id) << endl;
+
+		in_network = true;
 	}
 	else {
 		connection.reset();
@@ -499,11 +523,16 @@ vector<int> Node::findPath(int target_id) {
 }
 
 void Node::relay(int target_id, string payload) {
+	if (is_root && target_id == id) {
+		root_node->handleMessage(payload);
+		return;
+	}
+
 	vector<int> path;
 	if (target_id == dht.nodes[0]->id) path = findPathToRoot();
 	else path = findPath(target_id);
 	
-	if (path.size() == 0) return;
+	if (path.size() <= 1) return;
 
 	string message = "";
 	int current = id;
@@ -512,6 +541,10 @@ void Node::relay(int target_id, string payload) {
 	for (int i = 2; i < path.size(); i++) {
 		message += "pnp\nrelay request " + to_string(path[i]) + " " + to_string(current) + " " + to_string(session) + "\n";
 		current = path[i - 1];
+	}
+
+	if (path.size() > 2) {
+		message += "pnp\nrelay request " + to_string(path[path.size() - 1]) + " " + to_string(path[path.size() - 2]) + " " + to_string(session) + "\n";
 	}
 
 	message += payload;
@@ -547,17 +580,32 @@ void Node::disconnect(int target_id) {
 	shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
 	dht.deleteConnection(dht_connection);
 	
-	if (dht.getNodeFromId(id)->connections.size() > 0) {
+	if (is_root || dht.getNodeFromId(id)->connections.size() > 0) {
 		message = "rpnp\ndht disconnect " + to_string(id) + " " + to_string(target_id);
 		relay(dht.nodes[0]->id, message);
 	}
 
 	if (is_root && connection) {
 		int port = connection->socket->local_endpoint().port();
-		root_node->port_use[port - ROOT_PORT - 1] = false;
+		if (port - ROOT_PORT - 1 >= 0 && port - ROOT_PORT - 1 < root_node->port_use.size())root_node->port_use[port - ROOT_PORT - 1] = false;
 	}
 
 	connection.reset();
+}
+
+void Node::leave() {
+	left = true;
+
+	if (is_root) {
+		root_node->leave();
+		for (shared_ptr<Connection>& connection : connections) {
+			connection->socket->close();
+		}
+	}
+}
+
+void Node::stopListenning(int target_id) {
+	block.push_back(target_id);
 }
 
 //static bool is_private_ip(const asio::ip::address& addr) { // also copied from openai
