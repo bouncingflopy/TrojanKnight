@@ -10,7 +10,7 @@ Connection::Connection(string i, int p, int d) : ip(i), port(p), id(d) {
 
 	socket = make_shared<asio::ip::udp::socket>(context);
 	socket->open(asio::ip::udp::v4());
-	asio::ip::udp::endpoint local_endpoint = asio::ip::udp::endpoint(asio::ip::make_address("127.0.0.1"), 0);
+	asio::ip::udp::endpoint local_endpoint = asio::ip::udp::endpoint(asio::ip::make_address("0.0.0.0"), 0);
 	socket->bind(local_endpoint);
 
 	asio::ip::udp::endpoint e = asio::ip::udp::endpoint(asio::ip::make_address(ip), port);
@@ -23,7 +23,7 @@ Connection::Connection(string i, int p, int d, int my_port) : ip(i), port(p), id
 
 	socket = make_shared<asio::ip::udp::socket>(context);
 	socket->open(asio::ip::udp::v4());
-	asio::ip::udp::endpoint local_endpoint = asio::ip::udp::endpoint(asio::ip::make_address("127.0.0.1"), my_port);
+	asio::ip::udp::endpoint local_endpoint = asio::ip::udp::endpoint(asio::ip::make_address("0.0.0.0"), my_port);
 	socket->bind(local_endpoint);
 
 	asio::ip::udp::endpoint e = asio::ip::udp::endpoint(asio::ip::make_address(ip), port);
