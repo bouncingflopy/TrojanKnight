@@ -42,7 +42,6 @@ Node::Node() {
 	//cout << "IP: " << ip << endl; // wan
 	//cout << "Root: " << root << endl; // wan
 
-	// try to connect, if cant, become root
 	if (ip == root && false) { // lan
 		becomeRoot();
 	}
@@ -167,43 +166,28 @@ void Node::handleThread() {
 			}
 		}
 
-		//if (punchholeRC) {
-		//	if (punchholeRC->incoming_messages.size() > 0) {
-		//		string message = punchholeRC->incoming_messages.front();
-		//		punchholeRC->incoming_messages.pop(); // error 3
+		unique_lock<mutex> punchholeRC_lock(punchholeRC_mutex);
+		if (punchholeRC) {
+			if (punchholeRC->incoming_messages.size() > 0) {
+				string message = punchholeRC->incoming_messages.front();
+				punchholeRC->incoming_messages.pop();
+				punchholeRC_lock.unlock();
 
-		//		handleMessage(punchholeRC, message);
-		//	}
-		//}
-		shared_ptr<Connection> copied_punchholeRC(punchholeRC); // dont like this
-		if (copied_punchholeRC) {
-			if (copied_punchholeRC->incoming_messages.size() > 0) {
-				string message = copied_punchholeRC->incoming_messages.front();
-				copied_punchholeRC->incoming_messages.pop(); // error 3
-
-				handleMessage(copied_punchholeRC, message);
+				handleMessage(punchholeRC, message);
 			}
 		}
+		if (punchholeRC_lock.owns_lock()) punchholeRC_lock.unlock();
 		
-		//for (shared_ptr<Connection>& connection : connections) {
-		//for (int i = 0; i < connections.size(); i++) {
-		//	shared_ptr<Connection> connection = connections[i]; // error 1
-		//	if (!connection) continue; // stupid 1
 		vector<shared_ptr<Connection>> copied_connections;
-		for (shared_ptr<Connection> connection : connections) {
-			if (connection) copied_connections.push_back(shared_ptr<Connection>(connection));
-		}
+		copyConnections(copied_connections);
 		for (shared_ptr<Connection>& connection : copied_connections) {
-			if (connection->incoming_messages.size() > 0) {
-				string message = connection->incoming_messages.front();
+			if (connection) {
+				if (connection->incoming_messages.size() > 0) {
+					string message = connection->incoming_messages.front();
+					connection->incoming_messages.pop();
 
-				if (message == "pnp\nrelay") {
-					cout << "pause" << endl; // error 6
+					handleMessage(connection, message);
 				}
-
-				connection->incoming_messages.pop();
-
-				handleMessage(connection, message);
 			}
 		}
 
@@ -217,10 +201,13 @@ int Node::pickNodeToConnect() {
 	vector<shared_ptr<DHTNode>> nodes;
 	vector<int> bad = {id};
 
+	unique_lock<mutex> connections_lock(connections_mutex);
 	for (shared_ptr<Connection>& connection : connections) {
 		bad.push_back(connection->id);
 	}
+	connections_lock.unlock();
 
+	lock_guard<mutex> lock(dht.nodes_mutex);
 	for (shared_ptr<DHTNode>& node : dht.nodes) {
 		if (node->level == -1) bad.push_back(node->id);
 	}
@@ -232,7 +219,7 @@ int Node::pickNodeToConnect() {
 		nodes.push_back(node);
 	}
 
-	if (connections.size() < 2) { // 2 or 1?
+	if (connections.size() < 2) {
 		if (nodes.size() == 0) {
 			for (shared_ptr<DHTNode>& node : dht.nodes) {
 				if (find(bad.begin(), bad.end(), node->id) != bad.end()) continue;
@@ -265,20 +252,27 @@ void Node::manageConnections() { // make this on thread
 	if (connections.size() == 3) return;
 
 	while (connections.size() > 3) {
+		int before = connections.size();
+
 		int my_level = dht.getNodeFromId(id)->level;
 		bool parent_found = false;
 
+		unique_lock<mutex> lock(connections_mutex);
 		for (int i = 0; i < connections.size() - 1; i++) {
 			if (connections[i]->id == dht.nodes[0]->id) continue;
+			if (dht.getNodeFromId(connections[i]->id)->connections.size() == 1) continue;
 
 			// dont disconnect if is chess connection
 
 			if (parent_found || dht.getNodeFromId(connections[i]->id)->level >= my_level) {
+				lock.unlock();
 				disconnect(connections[i]->id);
 				break;
 			}
 			else parent_found = true;
 		}
+
+		if (before == connections.size()) break;
 	}
 
 	if (connections.size() < 3 && !connecting) {
@@ -287,6 +281,7 @@ void Node::manageConnections() { // make this on thread
 
 		cout << to_string(id) << " -> " << to_string(pick) << endl;
 
+		lock_guard<mutex> lock(punchholeRC_mutex);
 		connecting = true;
 		if (connectToPunchholeRoot()) {
 			connecting_id = pick;
@@ -305,7 +300,7 @@ void Node::rerootCheck() {
 
 	while (dht.nodes.size() >= 2 && dht.nodes[1]->id == id && !left) { // lan
 		Connection connection(dht.nodes[0]->ip, ROOT_PORT, dht.nodes[0]->id);
-		
+
 		if (!connection.connected && !is_root) {
 			dht.deleteNode(dht.nodes[0]->id);
 			setDDNS(dht.nodes[0]->ip);
@@ -324,16 +319,10 @@ void Node::rerootCheck() {
 void Node::lookout() {
 	while (!left) { // lan
 		time_point now = chrono::high_resolution_clock::now();
-
 		vector<int> bad_ids;
-		//for (shared_ptr<Connection>& connection : connections) {
-		//for (int i = 0; i < connections.size(); i++) {
-		//	shared_ptr<Connection> connection = connections[i]; // error 1
-		//	if (!connection) continue; // stupid 1
+
 		vector<shared_ptr<Connection>> copied_connections;
-		for (shared_ptr<Connection> connection : connections) {
-			if (connection) copied_connections.push_back(shared_ptr<Connection>(connection));
-		}
+		copyConnections(copied_connections);
 		for (shared_ptr<Connection>& connection : copied_connections) {
 			int time_passed = chrono::duration_cast<chrono::seconds>(now - connection->keepalive).count();
 			if (time_passed > KEEPALIVE_DETECTION) {
@@ -356,19 +345,23 @@ void Node::lookout() {
 
 		if (punchholeRC && connecting) {
 			int time_passed = chrono::duration_cast<chrono::seconds>(now - punchholeRC_creation).count();
-			if (time_passed > PUNCHHOLERC_TTL) {
+			if (time_passed > PUNCHHOLERC_TTL + generateRandom(0, PUNCHHOLERC_TTL_JITTER)) {
+				unique_lock<mutex> punchholeRC_lock(punchholeRC_mutex);
 				punchholeRC.reset();
+				punchholeRC_lock.unlock();
 				connecting = false;
 
-				//manageConnections();
+				manageConnections();
 			}
 		}
 
 		if (connections.size() == 0 && !is_root) {
-			if (in_network) {
+			if (in_network && dht.connections.size() > 0) {
 				in_network = false;
 				rootConnection.reset();
+				unique_lock<mutex> lock(punchholeRC_mutex);
 				punchholeRC.reset();
+				lock.unlock();
 				connecting = false;
 
 				if (connectToRoot() && !left) { // lan
@@ -377,6 +370,21 @@ void Node::lookout() {
 						rootConnection->writeData(message);
 					}
 
+					connect();
+				}
+			}
+		}
+
+		if (joined_time) {
+			int time_passed = chrono::duration_cast<chrono::seconds>(now - *joined_time).count();
+			if (time_passed > DETACHED_DETECTION) {
+				rootConnection.reset();
+				unique_lock<mutex> lock(punchholeRC_mutex);
+				punchholeRC.reset();
+				lock.unlock();
+				connecting = false;
+
+				if (connectToRoot() && !left) { // lan
 					connect();
 				}
 			}
@@ -396,28 +404,24 @@ void Node::keepalive() {
 		string message = "keepalive";
 
 		vector<shared_ptr<Connection>> copied_connections;
-		for (shared_ptr<Connection> connection : connections) {
-			if (connection) copied_connections.push_back(shared_ptr<Connection>(connection));
-		}
+		copyConnections(copied_connections);
 		for (shared_ptr<Connection>& connection : copied_connections) {
-			//if (connection) {
-			if (connection->connected) { // stupid 2
+			if (connection->connected) {
 				if (find(block.begin(), block.end(), connection->id) == block.end()) { // lan
-					connection->writeData(message); // stupid 2 // error 2
+					connection->writeData(message);
 				}
 			}
-			//}
-
-			//continue; // debug
 		}
 
 		if (rootConnection) {
 			rootConnection->writeData(message);
 		}
 
+		unique_lock<mutex> lock(punchholeRC_mutex);
 		if (punchholeRC) {
 			punchholeRC->writeData(message);
 		}
+		lock.unlock();
 
 		this_thread::sleep_for(chrono::seconds(KEEPALIVE_FREQUENCY));
 	}
@@ -456,13 +460,17 @@ bool Node::connectToPunchholeRoot() {
 }
 
 void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
+	unique_lock<mutex> punchholeRC_lock(punchholeRC_mutex);
 	shared_ptr<Connection> connection = punchholeRC;
 	punchholeRC.reset();
+	punchholeRC_lock.unlock();
 
 	connection->change(target_ip, target_port, target_id);
 	
 	if (connection->connected) {
+		unique_lock<mutex> connections_lock(connections_mutex);
 		connections.push_back(connection);
+		connections_lock.unlock();
 
 		shared_ptr<DHTNode> a = dht.getNodeFromId(id);
 		shared_ptr<DHTNode> b = dht.getNodeFromId(target_id);
@@ -476,6 +484,7 @@ void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
 		cout << to_string(id) << " == " << to_string(target_id) << endl;
 
 		in_network = true;
+		joined_time.reset();
 	}
 	else {
 		connection.reset();
@@ -579,6 +588,7 @@ void Node::relay(int target_id, string payload) {
 
 	message += payload;
 
+	unique_lock<mutex> lock(connections_mutex);
 	for (shared_ptr<Connection>& connection : connections) {
 		if (connection->id == path[1]) {
 			connection->writeData(message);
@@ -586,6 +596,7 @@ void Node::relay(int target_id, string payload) {
 			break;
 		}
 	}
+	lock.unlock();
 
 	if (path.size() > 2) {
 		RelaySession relay_session = RelaySession(target_id, id, session);
@@ -597,6 +608,7 @@ void Node::disconnect(int target_id) {
 	string message = "pnp\ndisconnect " + to_string(id);
 	shared_ptr<Connection> connection;
 
+	unique_lock<mutex> lock(connections_mutex);
 	for (int i = 0; i < connections.size(); i++) {
 		if (connections[i]->id == target_id) {
 			connection = connections[i];
@@ -606,6 +618,7 @@ void Node::disconnect(int target_id) {
 			break;
 		}
 	}
+	lock.unlock();
 
 	shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
 	dht.deleteConnection(dht_connection);
@@ -617,25 +630,41 @@ void Node::disconnect(int target_id) {
 
 	if (is_root && connection) {
 		int port = connection->socket->local_endpoint().port();
-		if (port - ROOT_PORT - 1 >= 0 && port - ROOT_PORT - 1 < root_node->port_use.size())root_node->port_use[port - ROOT_PORT - 1] = false;
-	}
+		
+		connection->socket->close();
+		connection.reset();
 
-	connection.reset();
+		if (port - ROOT_PORT - 1 >= 0 && port - ROOT_PORT - 1 < root_node->port_use.size()) {
+			root_node->port_use[port - ROOT_PORT - 1] = false;
+		}
+	}
+	else connection.reset();
 }
 
 void Node::leave() {
-	left = true;
-
 	if (is_root) {
 		root_node->leave();
+		lock_guard<mutex> connections_lock(connections_mutex);
 		for (shared_ptr<Connection>& connection : connections) {
 			connection->socket->close();
 		}
 	}
+
+	left = true;
 }
 
 void Node::stopListenning(int target_id) {
 	block.push_back(target_id);
+}
+
+void Node::copyConnections(vector<shared_ptr<Connection>>& copy) {
+	lock_guard<mutex> lock(connections_mutex);
+
+	copy.reserve(connections.size());
+
+	for (shared_ptr<Connection> connection : connections) {
+		copy.push_back(shared_ptr<Connection>(connection));
+	}
 }
 
 //static bool is_private_ip(const asio::ip::address& addr) { // also copied from openai

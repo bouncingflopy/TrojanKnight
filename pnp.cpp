@@ -39,7 +39,7 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 				}
 			}
 
-			DHT received_dht = DHT(dht_string);
+			DHT received_dht(dht_string);
 			if (received_dht.version > dht.version || dht.version - received_dht.version > 990) {
 				dht = received_dht;
 			}
@@ -58,18 +58,23 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 		else if (words[0] == "joined") {
 			id = stoi(words[1]);
 			cout << "joined as " + to_string(id) << endl;
+
+			joined_time = make_shared<time_point>(chrono::high_resolution_clock::now());
 		}
 		else if (words[0] == "punchhole") {
 			if (words[1] == "fail") {
+				unique_lock<mutex> lock(punchholeRC_mutex);
 				punchholeRC.reset();
+				lock.unlock();
 				connecting = false;
 
 				manageConnections();
 			}
 			else if (words[1] == "invite") {
 				if (connecting && connecting_id == stoi(words[2])) continue;
-
-				else if (!connectToPunchholeRoot()) {
+				
+				lock_guard<mutex> lock(punchholeRC_mutex);
+				if (!connectToPunchholeRoot()) {
 					string message = "rpnp\npunchhole fail " + to_string(id) + " " + words[2];
 					relay(dht.nodes[0]->id, message);
 
@@ -108,6 +113,7 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 			string rebroadcast = "pnp\nbroadcast\n" + broadcast;
 			int my_level = dht.getNodeFromId(id)->level;
 
+			lock_guard<mutex> lock(connections_mutex);
 			for (shared_ptr<Connection>& my_connection : connections) {
 				if (my_level < dht.getNodeFromId(my_connection->id)->level) {
 					my_connection->writeData(rebroadcast);
@@ -133,12 +139,14 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 					break;
 				}
 
+				unique_lock<mutex> lock(connections_mutex);
 				for (shared_ptr<Connection>& my_connection : connections) {
 					if (my_connection->id == relay_session.to) {
 						my_connection->writeData(relay_message);
 						break;
 					}
 				}
+				lock.unlock();
 
 				relay_sessions.push_back(relay_session);
 
@@ -166,9 +174,9 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 						else {
 							string response = "pnp\nrelay response " + to_string(session) + "\n" + relay_message;
 
-							for (int i = 0; i < connections.size(); i++) {
-								shared_ptr<Connection> connection = connections[i];
-								if (connection && connection->id == relay_session.from) {
+							lock_guard<mutex> lock(connections_mutex);
+							for (shared_ptr<Connection>& connection : connections) {
+								if (connection->id == relay_session.from) {
 									connection->writeData(response);
 									break;
 								}
@@ -264,11 +272,11 @@ void RootNode::handleMessage(Message message) {
 				asio::ip::udp::endpoint requested_endpoint;
 
 				bool found = false;
+				lock_guard<mutex> lock(punchhole_pairs_mutex);
 				for (int i = 0; i < punchhole_pairs.size(); i++) {
 					if (failed_pair == punchhole_pairs[i]) {
 						requested_endpoint = punchhole_pairs[i].requested_endpoint;
 						punchhole_pairs.erase(punchhole_pairs.begin() + i);
-
 						found = true;
 						break;
 					}
@@ -283,15 +291,18 @@ void RootNode::handleMessage(Message message) {
 				PunchholePair pair = PunchholePair(stoi(words[2]), stoi(words[3]), message.endpoint);
 
 				if (pair.b == node->id) {
-					thread punchhole_thread([this, pair]() {
-						simulateHolepunchConnect(pair.requested_endpoint, pair.a);
+					if (node->connections.size() < 3) {
+						thread punchhole_thread([this, pair]() {
+							simulateHolepunchConnect(pair.requested_endpoint, pair.a);
 						});
-					punchhole_thread.detach();
-					continue;
+						punchhole_thread.detach();
+						continue;
+					}
 				}
 
 				bool waiting = false;
 				int i;
+				lock_guard<mutex> lock(punchhole_pairs_mutex);
 				for (i = 0; i < punchhole_pairs.size(); i++) {
 					if (pair == punchhole_pairs[i]) {
 						waiting = true;
@@ -368,7 +379,7 @@ void Node::handleMessage(string message) {
 				}
 			}
 
-			DHT received_dht = DHT(dht_string);
+			DHT received_dht(dht_string);
 			if (received_dht.version > dht.version || dht.version - received_dht.version > 990) {
 				dht = received_dht;
 			}
@@ -388,8 +399,9 @@ void Node::handleMessage(string message) {
 
 			string rebroadcast = "pnp\nbroadcast\n" + broadcast;
 
+			lock_guard<mutex> lock(connections_mutex);
 			for (shared_ptr<Connection>& my_connection : connections) {
-				my_connection->writeData(rebroadcast);
+				if (my_connection->connected) my_connection->writeData(rebroadcast);
 			}
 
 			break;
@@ -500,16 +512,21 @@ void RootNode::handleMessage(shared_ptr<Connection> connection, string message) 
 				PunchholePair failed_pair = PunchholePair(stoi(words[2]), stoi(words[3]));
 				asio::ip::udp::endpoint requested_endpoint;
 
+				bool found = false;
+				lock_guard<mutex> lock(punchhole_pairs_mutex);
 				for (int i = 0; i < punchhole_pairs.size(); i++) {
 					if (failed_pair == punchhole_pairs[i]) {
 						requested_endpoint = punchhole_pairs[i].requested_endpoint;
 						punchhole_pairs.erase(punchhole_pairs.begin() + i);
+						found = true;
 						break;
 					}
 				}
 
-				string report = "pnp\npunchhole fail";
-				admin->writeData(requested_endpoint, report);
+				if (found) {
+					string report = "pnp\npunchhole fail";
+					admin->writeData(requested_endpoint, report);
+				}
 			}
 		}
 	}
@@ -581,16 +598,21 @@ void RootNode::handleMessage(RelaySession relay_session, shared_ptr<Connection> 
 				PunchholePair failed_pair = PunchholePair(stoi(words[2]), stoi(words[3]));
 				asio::ip::udp::endpoint requested_endpoint;
 
+				bool found = false;
+				lock_guard<mutex> lock(punchhole_pairs_mutex);
 				for (int i = 0; i < punchhole_pairs.size(); i++) {
 					if (failed_pair == punchhole_pairs[i]) {
 						requested_endpoint = punchhole_pairs[i].requested_endpoint;
-						punchhole_pairs.erase(punchhole_pairs.begin() + i); // error 4 (out of range)
+						punchhole_pairs.erase(punchhole_pairs.begin() + i);
+						found = true;
 						break;
 					}
 				}
 
-				string report = "pnp\npunchhole fail";
-				admin->writeData(requested_endpoint, report);
+				if (found) {
+					string report = "pnp\npunchhole fail";
+					admin->writeData(requested_endpoint, report);
+				}
 			}
 		}
 	}

@@ -56,10 +56,13 @@ void Connection::handleConnectionMessage(string data) {
 }
 
 void Connection::asyncReadData() {
+	fill(read_buffer.begin(), read_buffer.end(), 0);
+
 	socket->async_receive_from(asio::buffer(read_buffer.data(), read_buffer.size()), endpoint,
 		[&](error_code ec, size_t length) {
 			if (!ec) {
-				string data = string(read_buffer.begin(), read_buffer.begin() + length);
+				vector<char>::iterator end_of_data = find(read_buffer.begin(), read_buffer.end(), '\0');
+				string data(read_buffer.begin(), end_of_data);
 
 				if (checkNodeProtocol(data)) incoming_messages.push(data);
 				else handleConnectionMessage(data);
@@ -126,10 +129,7 @@ OpenConnection::OpenConnection() {
 }
 
 void OpenConnection::writeData(asio::ip::udp::endpoint endpoint, string data) {
-	error_code ec;
-	socket->send_to(asio::buffer(data.data(), data.size()), endpoint, 0, ec);
-
-	if (ec) cout << "error from openconnection: " << ec.message() << endl; // debug // error 5
+	socket->send_to(asio::buffer(data.data(), data.size()), endpoint);
 }
 
 bool OpenConnection::checkNodeProtocol(string data) {
@@ -143,12 +143,16 @@ void OpenConnection::handleConnectionMessage(Message data) {
 }
 
 void OpenConnection::asyncReceive() {
+	fill(read_buffer.begin(), read_buffer.end(), 0);
+
 	socket->async_receive_from(asio::buffer(read_buffer.data(), read_buffer.size()), receiving_endpoint,
 		[&](error_code ec, size_t length) {
 			if (!ec) {
 				Message message;
 				message.endpoint = receiving_endpoint;
-				message.message = string(read_buffer.begin(), read_buffer.begin() + length);
+
+				vector<char>::iterator end_of_data = find(read_buffer.begin(), read_buffer.end(), '\0');
+				message.message = string(read_buffer.begin(), end_of_data);
 				
 				if (checkNodeProtocol(message.message)) incoming_messages.push(message);
 				else handleConnectionMessage(message);

@@ -3,7 +3,7 @@
 
 using namespace std;
 
-RootNode::RootNode() {};
+RootNode::RootNode() {}
 
 RootNode::RootNode(shared_ptr<Node> n) : node(n) {
 	admin = make_shared<OpenConnection>();
@@ -64,7 +64,7 @@ void RootNode::holepunchConnect(asio::ip::udp::endpoint a_endpoint, asio::ip::ud
 	admin->writeData(b_endpoint, b_message);}
 
 void RootNode::detachedCheck() {
-	while (!left) { // admin
+	while (!left) { // lan
 		time_point now = chrono::high_resolution_clock::now();
 		vector<int> bad_nodes;
 
@@ -72,7 +72,7 @@ void RootNode::detachedCheck() {
 			if (dht_node->id == node->id) continue;
 
 			if (dht_node->disconnected) {
-				if (dht_node->connections.size() > 0) {
+				if (dht_node->level != -1) {
 					dht_node->disconnected = false;
 				}
 				else {
@@ -83,7 +83,7 @@ void RootNode::detachedCheck() {
 				}
 			}
 			else {
-				if (dht_node->connections.size() == 0) {
+				if (dht_node->level == -1) {
 					dht_node->disconnected = true;
 					dht_node->disconnect_time = chrono::high_resolution_clock::now();
 				}
@@ -102,21 +102,15 @@ void RootNode::detachedCheck() {
 }
 
 void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint, int target_id) {
-	int port;
-	if (!port_use[0]) {
-		port = ROOT_PORT + 1;
-		port_use[0] = true;
+	int port = 0;
+	for (int i = 0; i < port_use.size(); i++) {
+		if (!port_use[i]) {
+			port = ROOT_PORT + i + 1;
+			port_use[i] = true;
+			break;
+		}
 	}
-	else if (!port_use[1]) {
-		port = ROOT_PORT + 2;
-		port_use[1] = true;
-	}
-	else if (!port_use[2]) {
-		port = ROOT_PORT + 3;
-		port_use[2] = true;
-	}
-	else {
-		cout << "bad simulated punchhole root port chosen" << endl; // debug // error 7
+	if (!port) {
 		return;
 	}
 
@@ -126,7 +120,9 @@ void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint,
 	shared_ptr<Connection> connection = make_shared<Connection>(target_endpoint.address().to_string(), target_endpoint.port(), target_id, port);
 	
 	if (connection->connected) {
+		unique_lock<mutex> lock(node->connections_mutex);
 		node->connections.push_back(connection);
+		lock.unlock();
 
 		shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(node->id), dht.getNodeFromId(target_id));
 		if (dht.addConnection(dht_connection)) changedDHT();
@@ -139,8 +135,8 @@ void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint,
 }
 
 void RootNode::leave() {
-	left = true;
 	admin->socket->close();
+	left = true;
 }
 
 PunchholePair::PunchholePair(int a, int b) : a(a), b(b) {}

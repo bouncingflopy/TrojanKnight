@@ -15,6 +15,8 @@ struct DHT {
 	int version;
 	vector<shared_ptr<DHTNode>> nodes;
 	vector<shared_ptr<DHTConnection>> connections;
+	mutex nodes_mutex;
+	mutex connections_mutex;
 
 	DHT();
 	DHT(string dht);
@@ -22,10 +24,13 @@ struct DHT {
 	bool addNode(shared_ptr<DHTNode> node);
 	bool addConnection(shared_ptr<DHTConnection> connection);
 	bool deleteNode(int id);
-	bool deleteConnection(shared_ptr<DHTConnection> connection); // needed?
+	bool deleteConnection(shared_ptr<DHTConnection> connection);
 	shared_ptr<DHTNode> getNodeFromId(int id);
 	int getFreeId();
 	void calculateLevels();
+	void copyConnections(vector<shared_ptr<DHTConnection>>& copy);
+	void copyNodes(vector<shared_ptr<DHTNode>>& copy);
+	DHT& operator =(const DHT& other);
 };
 
 // add names for chess

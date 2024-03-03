@@ -20,7 +20,7 @@ class Node {
 public:
 	int id = -1;
 	vector<shared_ptr<Connection>> connections;
-	shared_ptr<Connection> rootConnection; // close rootConnection after inactive time
+	shared_ptr<Connection> rootConnection;
 	shared_ptr<Connection> punchholeRC;
 	time_point punchholeRC_creation;
 	bool is_root = false;
@@ -37,6 +37,9 @@ public:
 	vector<RelaySession> relay_sessions;
 	bool left = false; // lan
 	vector<int> block; // lan
+	mutex punchholeRC_mutex;
+	mutex connections_mutex;
+	shared_ptr<time_point> joined_time;
 
 	Node();
 	string getIP();
@@ -63,6 +66,7 @@ public:
 	void disconnect(int id);
 	void leave(); // lan
 	void stopListenning(int target_id); // lan
+	void copyConnections(vector<shared_ptr<Connection>>& copy);
 };
 
 struct RelaySession {
@@ -75,13 +79,12 @@ struct RelaySession {
 };
 
 // wan
-// error; stupid; -> mutex
-// wrongful reconnect after reroot with 2 nodes
 
 // add and implement private ip connection, only query written
 // what if node sends root dht update (connect and disconnect) but root is rerooting or doesnt get it?
 // root check no one takes ddns, if im empty connect to them (mid reroot)
-// add keepalive for rootconnection and punchholerc?
+// add ttl for rootconnection?
+// node joining while reroot
 
 /*
 
@@ -132,7 +135,7 @@ ack
 // make all pointers shared_ptrs in chess
 // make chess board size based on computer size
 // endcryption public key private key
-// node rootnode connection openconnection destructors for closing threads and queues
+// node rootnode connection openconnection destructors for closing threads and queues?
 
 class RootNode {
 public:
@@ -142,8 +145,9 @@ public:
 	thread detached_thread;
 	DHT dht;
 	vector<PunchholePair> punchhole_pairs;
-	vector<bool> port_use = {false, false, false};
+	vector<uint8_t> port_use = {false, false, false};
 	bool left = false; // lan
+	mutex punchhole_pairs_mutex;
 	
 	RootNode();
 	RootNode(shared_ptr<Node> n);

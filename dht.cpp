@@ -16,6 +16,7 @@ DHT::DHT(string dht) {
 	version = stoi(lines[0]);
 
 	int i;
+	unique_lock<mutex> nodes_lock(nodes_mutex);
 	for (i = 2; lines[i] != "-"; i++) {
 		vector<string> words;
 		istringstream stream(lines[i]);
@@ -25,7 +26,9 @@ DHT::DHT(string dht) {
 		shared_ptr<DHTNode> node = make_shared<DHTNode>(stoi(words[0]), stoi(words[1]), words[2]);
 		nodes.push_back(node);
 	}
+	nodes_lock.unlock();
 
+	lock_guard<mutex> connections_lock(connections_mutex);
 	for (i++; i < lines.size(); i++) {
 		vector<string> words;
 		istringstream stream(lines[i]);
@@ -48,27 +51,15 @@ string DHT::toString() {
 	
 	dht += to_string(version) + "\n-\n";
 
-	//for (shared_ptr<DHTNode>& node : nodes) {
-	//for (int i = 0; i < nodes.size(); i++) {
-	//	shared_ptr<DHTNode> node = nodes[i];
-	//	if (!node) continue; // stupid 1
 	vector<shared_ptr<DHTNode>> copied_nodes;
-	for (shared_ptr<DHTNode> node : nodes) {
-		if (node) copied_nodes.push_back(shared_ptr<DHTNode>(node));
-	}
+	copyNodes(copied_nodes);
 	for (shared_ptr<DHTNode>& node : copied_nodes) {
 		dht += to_string(node->id) + " " + to_string(node->level) + " " + node->ip + "\n";
 	}
 	dht += "-\n";
 
-	//for (shared_ptr<DHTConnection>& connection : connections) {
-	//for (int i = 0; i < connections.size(); i++) {
-	//	shared_ptr<DHTConnection> connection = connections[i];
-	//	if (!connection) continue; // stupid 1
 	vector<shared_ptr<DHTConnection>> copied_connections;
-	for (shared_ptr<DHTConnection> connection : connections) {
-		if (connection) copied_connections.push_back(shared_ptr<DHTConnection>(connection));
-	}
+	copyConnections(copied_connections);
 	for (shared_ptr<DHTConnection>& connection : copied_connections) {
 		dht += to_string(connection->a->id) + " " + to_string(connection->b->id) + "\n";
 	}
@@ -77,6 +68,8 @@ string DHT::toString() {
 }
 
 bool DHT::addNode(shared_ptr<DHTNode> node) {
+	lock_guard<mutex> lock(nodes_mutex);
+
 	if (node->id == -1) return false;
 
 	for (int i = 0; i < nodes.size(); i++) {
@@ -90,6 +83,8 @@ bool DHT::addNode(shared_ptr<DHTNode> node) {
 }
 
 bool DHT::addConnection(shared_ptr<DHTConnection> connection) {
+	lock_guard<mutex> lock(connections_mutex);
+
 	if (connection->a->id == -1 || connection->b->id == -1) return false;
 
 	for (int i = 0; i < connections.size(); i++) {
@@ -109,13 +104,21 @@ bool DHT::addConnection(shared_ptr<DHTConnection> connection) {
 }
 
 bool DHT::deleteNode(int id) {
+	lock_guard<mutex> lock(nodes_mutex);
+
 	if (id == -1) return false;
 
 	for (int i = 0; i < nodes.size(); i++) {
 		if (id == nodes[i]->id) {
-			vector<shared_ptr<DHTConnection>> copied_connections = nodes[i]->connections;
+			vector<shared_ptr<DHTConnection>> copied_connections;
+			copied_connections.reserve(nodes[i]->connections.size());
+
+			for (shared_ptr<DHTConnection> connection : nodes[i]->connections) {
+				copied_connections.push_back(shared_ptr<DHTConnection>(connection));
+			}
+
 			for (shared_ptr<DHTConnection> connection : copied_connections) {
-				if (connection) deleteConnection(connection);
+				deleteConnection(connection);
 			}
 
 			nodes.erase(nodes.begin() + i);
@@ -128,6 +131,8 @@ bool DHT::deleteNode(int id) {
 }
 
 bool DHT::deleteConnection(shared_ptr<DHTConnection> connection) {
+	lock_guard<mutex> lock(connections_mutex);
+
 	if (connection->a->id == -1 || connection->b->id == -1) return false;
 
 	for (int i = 0; i < connections.size(); i++) {
@@ -150,6 +155,8 @@ bool DHT::deleteConnection(shared_ptr<DHTConnection> connection) {
 }
 
 shared_ptr<DHTNode> DHT::getNodeFromId(int id) {
+	lock_guard<mutex> lock(nodes_mutex);
+
 	for (int i = 0; i < nodes.size(); i++) {
 		if (nodes[i]->id == id) {
 			return nodes[i];
@@ -164,9 +171,12 @@ shared_ptr<DHTNode> DHT::getNodeFromId(int id) {
 
 int DHT::getFreeId() {
 	vector<int> ids;
+
+	unique_lock<mutex> lock(nodes_mutex);
 	for (shared_ptr<DHTNode>& node : nodes) {
 		ids.push_back(node->id);
 	}
+	lock.unlock();
 
 	sort(ids.begin(), ids.end());
 
@@ -218,8 +228,45 @@ void DHT::calculateLevels() {
 		}
 	}
 
+	int i;
+	for (i = 1; i < nodes.size(); i++) {
+		if (nodes[i]->level != -1) break;
+	}
+	if (i < nodes.size()) swap(nodes[1], nodes[i]);
+
 	current_queue = queue<shared_ptr<DHTNode>>();
 	next_queue = queue<shared_ptr<DHTNode>>();
+}
+
+void DHT::copyConnections(vector<shared_ptr<DHTConnection>>& copy) {
+	lock_guard<mutex> lock(connections_mutex);
+
+	copy.reserve(connections.size());
+
+	for (shared_ptr<DHTConnection> connection : connections) {
+		copy.push_back(shared_ptr<DHTConnection>(connection));
+	}
+}
+
+void DHT::copyNodes(vector<shared_ptr<DHTNode>>& copy) {
+	lock_guard<mutex> lock(nodes_mutex);
+
+	copy.reserve(nodes.size());
+
+	for (shared_ptr<DHTNode> node : nodes) {
+		copy.push_back(shared_ptr<DHTNode>(node));
+	}
+}
+
+DHT& DHT::operator =(const DHT& other) {
+	lock_guard<mutex> connections_lock(connections_mutex);
+	lock_guard<mutex> nodes_lock(nodes_mutex);
+
+	version = other.version;
+	nodes = other.nodes;
+	connections = other.connections;
+
+	return *this;
 }
 
 DHTNode::DHTNode() {};

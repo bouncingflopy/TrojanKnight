@@ -5,6 +5,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <mutex>
 
 using namespace std;
 typedef std::chrono::high_resolution_clock::time_point time_point;
@@ -23,10 +24,11 @@ const int KEEPALIVE_FREQUENCY = 2;
 const int KEEPALIVE_DETECTION = 5; // debug 8
 const int SESSION_TTL = 15;
 const int LOOKOUT_CHECK_FREQUENCY = 500;
-const int DETACHED_DETECTION = 6; // debug 20
+const int DETACHED_DETECTION = 6; // debug 30
 const int DETACHED_CHECK_FREQUENCY = 5;
 const int REROOT_CHECK_FREQUENCY = 3;
 const int HANDLE_FREQUENCY = 50;
 const int PUNCHHOLERC_TTL = 8;
+const int PUNCHHOLERC_TTL_JITTER = 3;
 
 #endif

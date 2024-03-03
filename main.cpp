@@ -89,7 +89,14 @@ void fuzz(int amount) {
 
     while (nodes.size() <= amount) {
         if (generateRandom(1, time) == 1) {
-            createNode(nodes);
+            if (generateRandom(1, 10) == 1) nodes[generateRandom(0, nodes.size() - 1)]->leave();
+            else if (generateRandom(1, 10) == 1) {
+                for (int i = 0; i < nodes.size(); i++) {
+                    if (nodes[i]->is_root && !nodes[i]->left) nodes[i]->leave();
+                    break;
+                }
+            }
+            else createNode(nodes);
         }
 
         this_thread::sleep_for(chrono::milliseconds(250));
