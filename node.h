@@ -35,8 +35,6 @@ public:
 	shared_ptr<thread> reroot_thread;
 	DHT dht;
 	vector<RelaySession> relay_sessions;
-	bool left = false; // lan
-	vector<int> block; // lan
 	mutex punchholeRC_mutex;
 	mutex connections_mutex;
 	shared_ptr<time_point> joined_time;
@@ -64,8 +62,6 @@ public:
 	vector<int> findPath(int id);
 	void relay(int target_id, string payload);
 	void disconnect(int id);
-	void leave(); // lan
-	void stopListenning(int target_id); // lan
 	void copyConnections(vector<shared_ptr<Connection>>& copy);
 };
 
@@ -146,7 +142,6 @@ public:
 	DHT dht;
 	vector<PunchholePair> punchhole_pairs;
 	vector<uint8_t> port_use = {false, false, false};
-	bool left = false; // lan
 	mutex punchhole_pairs_mutex;
 	
 	RootNode();
@@ -162,7 +157,6 @@ public:
 	void holepunchConnect(asio::ip::udp::endpoint a_endpoint, asio::ip::udp::endpoint b_endpoint, int a_id, int b_id);
 	void detachedCheck();
 	void simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint, int target_id);
-	void leave(); // lan
 };
 
 struct PunchholePair {

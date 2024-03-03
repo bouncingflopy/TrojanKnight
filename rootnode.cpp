@@ -18,7 +18,7 @@ RootNode::RootNode(shared_ptr<Node> n) : node(n) {
 }
 
 void RootNode::handleThread() {
-	while (!left) { // lan
+	while (true) {
 		if (admin->incoming_messages.size() > 0) {
 			Message message = admin->incoming_messages.front();
 			admin->incoming_messages.pop();
@@ -64,7 +64,7 @@ void RootNode::holepunchConnect(asio::ip::udp::endpoint a_endpoint, asio::ip::ud
 	admin->writeData(b_endpoint, b_message);}
 
 void RootNode::detachedCheck() {
-	while (!left) { // lan
+	while (true) {
 		time_point now = chrono::high_resolution_clock::now();
 		vector<int> bad_nodes;
 
@@ -132,11 +132,6 @@ void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint,
 	else {
 		port_use[port - ROOT_PORT - 1] = false;
 	}
-}
-
-void RootNode::leave() {
-	admin->socket->close();
-	left = true;
 }
 
 PunchholePair::PunchholePair(int a, int b) : a(a), b(b) {}

@@ -39,10 +39,10 @@ Node::Node() {
 	string ip = getIP();
 	string root = getDDNS();
 	
-	//cout << "IP: " << ip << endl; // wan
-	//cout << "Root: " << root << endl; // wan
+	cout << "IP: " << ip << endl;
+	cout << "Root: " << root << endl;
 
-	if (ip == root && false) { // lan
+	if (ip == root) {
 		becomeRoot();
 	}
 	else if (!connectToRoot()) {
@@ -60,8 +60,6 @@ Node::Node() {
 }
 
 string Node::getIP() {
-	return "127.0.0.1"; // lan
-
 	CURL* curl;
 	CURLcode res;
 	string response;
@@ -84,8 +82,6 @@ string Node::getIP() {
 }
 
 string Node::getDDNS() {
-	return "127.0.0.1"; // lan
-
 	CURL* curl;
 	CURLcode res;
 	string response;
@@ -115,8 +111,6 @@ string Node::getDDNS() {
 }
 
 void Node::setDDNS(string ip) {
-	return; // lan
-
 	CURL* curl;
 	CURLcode res;
 
@@ -156,7 +150,7 @@ void Node::connect() {
 }
 
 void Node::handleThread() {
-	while (!left) { // lan
+	while (true) {
 		if (rootConnection) {
 			if (rootConnection->incoming_messages.size() > 0) {
 				string message = rootConnection->incoming_messages.front();
@@ -298,7 +292,7 @@ void Node::manageConnections() { // make this on thread
 void Node::rerootCheck() {
 	is_reroot = true;
 
-	while (dht.nodes.size() >= 2 && dht.nodes[1]->id == id && !left) { // lan
+	while (dht.nodes.size() >= 2 && dht.nodes[1]->id == id) {
 		Connection connection(dht.nodes[0]->ip, ROOT_PORT, dht.nodes[0]->id);
 
 		if (!connection.connected && !is_root) {
@@ -317,7 +311,7 @@ void Node::rerootCheck() {
 }
 
 void Node::lookout() {
-	while (!left) { // lan
+	while (true) {
 		time_point now = chrono::high_resolution_clock::now();
 		vector<int> bad_ids;
 
@@ -364,7 +358,7 @@ void Node::lookout() {
 				lock.unlock();
 				connecting = false;
 
-				if (connectToRoot() && !left) { // lan
+				if (connectToRoot()) {
 					if (id != -1) {
 						string message = "rpnp\ndht leave " + to_string(id);
 						rootConnection->writeData(message);
@@ -384,7 +378,7 @@ void Node::lookout() {
 				lock.unlock();
 				connecting = false;
 
-				if (connectToRoot() && !left) { // lan
+				if (connectToRoot()) {
 					connect();
 				}
 			}
@@ -400,17 +394,13 @@ void Node::lookout() {
 }
 
 void Node::keepalive() {
-	while (!left) { // lan
+	while (true) {
 		string message = "keepalive";
 
 		vector<shared_ptr<Connection>> copied_connections;
 		copyConnections(copied_connections);
 		for (shared_ptr<Connection>& connection : copied_connections) {
-			if (connection->connected) {
-				if (find(block.begin(), block.end(), connection->id) == block.end()) { // lan
-					connection->writeData(message);
-				}
-			}
+			if (connection->connected) connection->writeData(message);
 		}
 
 		if (rootConnection) {
@@ -639,22 +629,6 @@ void Node::disconnect(int target_id) {
 		}
 	}
 	else connection.reset();
-}
-
-void Node::leave() {
-	if (is_root) {
-		root_node->leave();
-		lock_guard<mutex> connections_lock(connections_mutex);
-		for (shared_ptr<Connection>& connection : connections) {
-			connection->socket->close();
-		}
-	}
-
-	left = true;
-}
-
-void Node::stopListenning(int target_id) {
-	block.push_back(target_id);
 }
 
 void Node::copyConnections(vector<shared_ptr<Connection>>& copy) {

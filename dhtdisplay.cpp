@@ -38,49 +38,6 @@ void display(const DHT& dht, sf::Image& image, sf::Sprite& sprite, sf::Texture& 
     }
 }
 
-void dhtDisplay(vector<shared_ptr<Node>>& nodes) {
-    int old_version = -1;
-    shared_ptr<Node> node;
-
-    shared_ptr<sf::RenderWindow> window;
-    sf::Image image;
-    sf::Sprite sprite;
-    sf::Texture texture;
-
-    while (true) {
-        for (int i = 0; i < nodes.size(); i++) {
-            if (nodes[i]->is_root && !nodes[i]->left) node = nodes[i];
-        }
-
-        if (old_version != node->dht.version) {
-            display(node->dht, image, sprite, texture);
-
-            if(window) window->close();
-            window = make_shared<sf::RenderWindow>(sf::VideoMode(image.getSize().x, image.getSize().y), "DHT Graph");
-            window->draw(sprite);
-            window->display();
-
-            old_version = node->dht.version;
-        }
-
-        if (window) {
-            if (window->isOpen()) {
-                window->draw(sprite);
-                window->display();
-
-                sf::Event event;
-                while (window->pollEvent(event)) {
-                    if (event.type == sf::Event::Closed) {
-                        window->close();
-                    }
-                }
-            }
-        }
-
-        this_thread::sleep_for(chrono::milliseconds(500));
-    }
-};
-
 void dhtDisplay(const DHT& dht) {
     int old_version = -1;
 
