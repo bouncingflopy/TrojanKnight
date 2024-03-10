@@ -19,7 +19,7 @@ void Name::createSprite() {
     text.setCharacterSize(NAME_FONTSIZE);
 
     int fontsize = NAME_FONTSIZE;
-    while (text.getLocalBounds().width > NAME_MAX_WIDTH) {
+    while (text.getLocalBounds().width > NAME_MAX_WIDTH) { // NO
         fontsize--;
         text.setCharacterSize(fontsize);
     }

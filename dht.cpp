@@ -269,6 +269,14 @@ DHT& DHT::operator =(const DHT& other) {
 	return *this;
 }
 
+bool DHT::operator ==(DHT& other) {
+	if (version != other.version) return false;
+	if (nodes.size() != other.nodes.size()) return false;
+	if (connections.size() != other.connections.size()) return false;
+
+	return toString() == other.toString();
+}
+
 DHTNode::DHTNode() {};
 
 DHTNode::DHTNode(int id, int level, string ip) : id(id), level(level), ip(ip) {};

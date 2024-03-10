@@ -31,6 +31,7 @@ struct DHT {
 	void copyConnections(vector<shared_ptr<DHTConnection>>& copy);
 	void copyNodes(vector<shared_ptr<DHTNode>>& copy);
 	DHT& operator =(const DHT& other);
+	bool operator ==(DHT& other);
 };
 
 // add names for chess

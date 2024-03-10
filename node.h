@@ -19,6 +19,7 @@ struct PunchholePair;
 class Node {
 public:
 	int id = -1;
+	string ip;
 	vector<shared_ptr<Connection>> connections;
 	shared_ptr<Connection> rootConnection;
 	shared_ptr<Connection> punchholeRC;
@@ -74,7 +75,7 @@ struct RelaySession {
 	RelaySession(int to, int from, int session);
 };
 
-// wan
+// wan, wan punchhole, wan leave, wan reroot
 
 // add and implement private ip connection, only query written
 // what if node sends root dht update (connect and disconnect) but root is rerooting or doesnt get it?
@@ -132,6 +133,7 @@ ack
 // make chess board size based on computer size
 // endcryption public key private key
 // node rootnode connection openconnection destructors for closing threads and queues?
+// delete unnecessary files (+ github)
 
 class RootNode {
 public:

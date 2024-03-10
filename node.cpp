@@ -36,8 +36,8 @@ static int generateRandom(int low, int high) {
 Node::Node() {
 	dht = DHT();
 
-	string ip = getIP();
-	string root = getDDNS();
+	ip = getIP();
+	/*string root = getDDNS();
 	
 	cout << "IP: " << ip << endl;
 	cout << "Root: " << root << endl;
@@ -52,7 +52,8 @@ Node::Node() {
 
 	if (!is_root) {
 		connect();
-	}
+	}*/
+	becomeRoot();
 
 	handle_thread = thread(&Node::handleThread, this);
 	keepalive_thread = thread(&Node::keepalive, this);

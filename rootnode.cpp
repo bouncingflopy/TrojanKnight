@@ -33,7 +33,7 @@ void RootNode::handleThread() {
 void RootNode::createDHT() {
 	dht = DHT();
 
-	shared_ptr<DHTNode> dhtNode = make_shared<DHTNode>(0, 0, node->getIP());
+	shared_ptr<DHTNode> dhtNode = make_shared<DHTNode>(0, 0, node->ip);
 
 	if (dht.addNode(dhtNode)) changedDHT();
 

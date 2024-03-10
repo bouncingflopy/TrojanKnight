@@ -100,7 +100,19 @@ IDR_TTF2                102                     "resources\\Helvetica.ttf"
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-MAINICON               ICON                    "resources\\icon.ico"
+MAINICON                ICON                    "resources\\icon.ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// PNG
+//
+
+IDB_PNG17               PNG                     "resources\\prev_arrow.png"
+
+IDB_PNG18               PNG                     "resources\\next_arrow.png"
+
+IDB_PNG19               PNG                     "resources\\edit.png"
 
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////

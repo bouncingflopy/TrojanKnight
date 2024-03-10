@@ -20,6 +20,9 @@
 #define Q1 IDB_PNG14
 #define R0 IDB_PNG15
 #define R1 IDB_PNG16
+#define PREV_ARROW IDB_PNG17
+#define NEXT_ARROW IDB_PNG18
+#define EDIT IDB_PNG19
 
 #define DEJAVU IDR_TTF1
 #define HELVETICA IDR_TTF2
@@ -96,6 +99,15 @@ sf::Texture* resource::loadImage(string name) {
 	}
 	else if (name == "r1") {
 		handle = GH(R1, PNG);
+	}
+	else if (name == "previous_arrow") {
+		handle = GH(PREV_ARROW, PNG);
+	}
+	else if (name == "next_arrow") {
+		handle = GH(NEXT_ARROW, PNG);
+	}
+	else if (name == "edit") {
+		handle = GH(EDIT, PNG);
 	}
 
 	texture->loadFromMemory(get<0>(handle), get<1>(handle));
