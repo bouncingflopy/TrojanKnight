@@ -466,12 +466,12 @@ void Board::revivePiece(Piece* piece) {
 }
 
 string Board::boardFEN() {
-    string fen = "";
+    string fen;
     string row;
     int empty;
 
     for (int i = 0; i < 8; i++) {
-        row = "";
+        row;
         empty = 0;
 
         for (int j = 0; j < 8; j++) {
@@ -502,13 +502,13 @@ string Board::boardFEN() {
 
     fen += ((turn == 1) ? "w" : "b") + string(" ");
 
-    string castle = "";
+    string castle;
     if (players[1]->king_piece->times_moved == 0 && tiles[7][7]->piece && tiles[7][7]->piece->times_moved == 0) castle += "K";
     if (players[1]->king_piece->times_moved == 0 && tiles[7][0]->piece && tiles[7][0]->piece->times_moved == 0) castle += "Q";
     if (players[0]->king_piece->times_moved == 0 && tiles[0][7]->piece && tiles[0][7]->piece->times_moved == 0) castle += "k";
     if (players[0]->king_piece->times_moved == 0 && tiles[0][0]->piece && tiles[0][0]->piece->times_moved == 0) castle += "q";
 
-    fen += ((castle == "") ? "-" : castle) + " ";
+    fen += ((castle.empty()) ? "-" : castle) + " ";
 
     string en_passant = "-";
     if (moveHistory.size() > 0) {

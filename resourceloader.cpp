@@ -5,8 +5,8 @@
 #include "resourceloader.h"
 
 #define DRAW IDB_PNG1
-#define DRAW_V IDB_PNG2
-#define DRAW_X IDB_PNG3
+#define V IDB_PNG2
+#define X IDB_PNG3
 #define RESIGN IDB_PNG4
 #define B0 IDB_PNG5
 #define B1 IDB_PNG6
@@ -55,11 +55,11 @@ sf::Texture* resource::loadImage(string name) {
 	if (name == "draw") {
 		handle = GH(DRAW, PNG);
 	}
-	else if (name == "draw_v") {
-		handle = GH(DRAW_V, PNG);
+	else if (name == "v") {
+		handle = GH(V, PNG);
 	}
-	else if (name == "draw_x") {
-		handle = GH(DRAW_X, PNG);
+	else if (name == "x") {
+		handle = GH(X, PNG);
 	}
 	else if (name == "resign") {
 		handle = GH(RESIGN, PNG);

@@ -90,28 +90,29 @@ const float LOBBY_ARROW_SCALE = 0.7f;
 
 const sf::Vector2f LOBBY_START_SIZE(250, 150);
 const sf::Color LOBBY_START_COLOR(15, 189, 43);
-const string LOBBY_START_TEXT_FONT = "helvetica";
+const string LOBBY_START_FONT = "helvetica";
 const int LOBBY_START_TEXT_FONTSIZE = 42;
 const int LOBBY_START_TEXT_HEIGHT_OFFSET = -30;
 const sf::Color LOBBY_START_TEXT_COLOR(0, 0, 0);
-const string LOBBY_START_SUBTEXT_FONT = "helvetica";
 const int LOBBY_START_SUBTEXT_FONTSIZE = 24;
 const int LOBBY_START_SUBTEXT_HEIGHT_OFFSET = 20;
 const sf::Color LOBBY_START_SUBTEXT_COLOR(0, 0, 0);
 
 const sf::Vector2f LOBBY_EDIT_SIZE(60, 60);
 const sf::Vector2f LOBBY_EDIT_OFFSET(110, 350);
-const sf::Color LOBBY_EDIT_COLOR(25, 167, 210);
+const sf::Color LOBBY_EDIT_DEACTIVE_COLOR(25, 167, 210);
+const sf::Color LOBBY_EDIT_ACTIVE_COLOR(14, 255, 42);
 
-const int LOBBY_INPUT_OFFSET = 10;
-const float LOBBY_INPUT_TEXT_HEIGHT_OFFSET = 1.6f;
+const int LOBBY_INPUT_PADDING = 10;
 
 const string LOBBY_SEARCH_PLACEHOLDER = "search";
 const sf::Vector2f LOBBY_SEARCH_SIZE(200, 50);
-const int LOBBY_SEARCH_HEIGHT_OIFFSET = -350;
+const int LOBBY_SEARCH_HEIGHT_OFFSET = -350;
 const sf::Color LOBBY_SEARCH_COLOR(243, 243, 243);
 const string LOBBY_SEARCH_FONT = "helvetica";
 const int LOBBY_SEARCH_FONTSIZE = 24;
+const int LOBBY_SEARCH_TEXT_MAX_WIDTH = 180;
+const float LOBBY_SEARCH_TEXT_HEIGHT_OFFSET = 1.15f;
 const sf::Color LOBBY_SEARCH_TEXT_COLOR(0, 0, 0);
 
 const sf::Vector2f LOBBY_NAME_SIZE(200, 60);
@@ -120,6 +121,10 @@ const int LOBBY_NAME_HEIGHT_OFFSET = 350;
 const sf::Color LOBBY_NAME_COLOR(254, 6, 142);
 const string LOBBY_NAME_FONT = "helvetica";
 const int LOBBY_NAME_FONTSIZE = 42;
+const int LOBBY_NAME_TEXT_MAX_WIDTH = 180;
+const float LOBBY_NAME_TEXT_HEIGHT_OFFSET = 1.15f;
 const sf::Color LOBBY_NAME_TEXT_COLOR(0, 0, 0);
+
+const int MAX_NAME_LENGTH = 8;
 
 #endif

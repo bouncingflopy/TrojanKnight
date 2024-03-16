@@ -564,7 +564,7 @@ void Node::relay(int target_id, string payload) {
 	
 	if (path.size() <= 1) return;
 
-	string message = "";
+	string message;
 	int current = id;
 	int session = generateRandom(0, 999999);
 
@@ -640,6 +640,10 @@ void Node::copyConnections(vector<shared_ptr<Connection>>& copy) {
 	for (shared_ptr<Connection> connection : connections) {
 		copy.push_back(shared_ptr<Connection>(connection));
 	}
+}
+
+void Node::changeName(string name) {
+	cout << "change name in dht to " << name << "!" << endl; // implement
 }
 
 //static bool is_private_ip(const asio::ip::address& addr) { // also copied from openai

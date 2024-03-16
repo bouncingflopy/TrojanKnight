@@ -87,7 +87,7 @@ public:
 class EndScreen {
 public:
     GameResult result;
-    string winner = "";
+    string winner;
     bool tie;
     sf::RectangleShape rect;
     sf::Font font;

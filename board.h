@@ -34,7 +34,7 @@ public:
     vector<Move*>** move_cache;
     bool enabled = true;
     GameResult game_result;
-    string winner = "";
+    string winner;
     bool waiting_promotion = false;
     Tile* promotion_destination;
     PromotionTile*** promotion_tiles;

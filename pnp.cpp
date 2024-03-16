@@ -31,7 +31,7 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 		}
 
 		if (words[0] == "dht") {
-			string dht_string = "";
+			string dht_string;
 			for (int j = i + 1; j < lines.size(); j++) {
 				dht_string += lines[j];
 				if (j < lines.size() - 1) {
@@ -100,7 +100,7 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 			rootConnection.reset();
 		}
 		else if (words[0] == "broadcast") {
-			string broadcast = "";
+			string broadcast;
 			for (int j = i + 1; j < lines.size(); j++) {
 				broadcast += lines[j];
 				if (j < lines.size() - 1) {
@@ -126,7 +126,7 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 			if (words[1] == "request") {
 				RelaySession relay_session = RelaySession(stoi(words[2]), stoi(words[3]), stoi(words[4]));
 				
-				string relay_message = "";
+				string relay_message;
 				for (int j = i + 1; j < lines.size(); j++) {
 					relay_message += lines[j];
 					if (j < lines.size() - 1) {
@@ -155,7 +155,7 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 			else if (words[1] == "response") {
 				int session = stoi(words[2]);
 				
-				string relay_message = "";
+				string relay_message;
 				for (int j = i + 1; j < lines.size(); j++) {
 					relay_message += lines[j];
 					if (j < lines.size() - 1) {
@@ -371,7 +371,7 @@ void Node::handleMessage(string message) {
 		}
 
 		if (words[0] == "dht") {
-			string dht_string = "";
+			string dht_string;
 			for (int j = i + 1; j < lines.size(); j++) {
 				dht_string += lines[j];
 				if (j < lines.size() - 1) {
@@ -387,7 +387,7 @@ void Node::handleMessage(string message) {
 			break;
 		}
 		else if (words[0] == "broadcast") {
-			string broadcast = "";
+			string broadcast;
 			for (int j = i + 1; j < lines.size(); j++) {
 				broadcast += lines[j];
 				if (j < lines.size() - 1) {

@@ -1,14 +1,14 @@
 #include "lobby.h"
 
 Lobby::Lobby(Node* n) : node(n) {
-	player = new Player(0, "", 0);
 	tiles = createTiles();
 	createArrows();
 
-	buttons.push_back(new LobbyButtonStart(this));
-	buttons.push_back(new LobbyButtonEdit(this));
-	inputs.push_back(new LobbySearch(this));
-	inputs.push_back(new LobbyName(this));
+	input_search = new LobbySearch(this);
+	input_name = new LobbyName(this);
+	button_start = new LobbyButtonStart(this);
+	button_edit = new LobbyButtonEdit(this, input_name);
+	input_name->edit = button_edit;
 
 	dht = DHT();
 	updateDHT();
@@ -30,13 +30,13 @@ void Lobby::createArrows() {
 	next_sprite.setPosition(sf::Vector2f(TILESIZE * 8 - TILESIZE / 2 - next_sprite.getLocalBounds().width * scale / 2, TILESIZE * 8 - TILESIZE / 2 - next_sprite.getLocalBounds().height * scale / 2));
 }
 
-Tile*** Lobby::createTiles() {
-	Tile*** tiles = new Tile * *[8];
+LobbyTile*** Lobby::createTiles() {
+	LobbyTile*** tiles = new LobbyTile * *[8];
 
 	for (int i = 0; i < 8; i++) {
-		tiles[i] = new Tile * [8];
+		tiles[i] = new LobbyTile * [8];
 		for (int j = 0; j < 8; j++) {
-			tiles[i][j] = new Tile(i, j, 1);
+			tiles[i][j] = new LobbyTile(i, j);
 		}
 	}
 
@@ -59,20 +59,19 @@ void Lobby::draw(sf::RenderWindow& window) {
 	if (previous) window.draw(previous_sprite);
 	if (next) window.draw(next_sprite);
 
-	for (LobbyButton* button : buttons) {
-		window.draw(button->rect);
-		if (button->has_text) {
-			for (sf::Text* text : button->texts) {
-				window.draw(*text);
-			}
-		}
-		else window.draw(button->sprite);
-	}
+	
+	window.draw(button_start->rect);
+	window.draw(button_start->text);
+	window.draw(button_start->subtext);
 
-	for (LobbyInput* input : inputs) {
-		window.draw(input->rect);
-		window.draw(input->text);
-	}
+	window.draw(button_edit->rect);
+	window.draw(button_edit->sprite);
+
+	window.draw(input_search->rect);
+	window.draw(input_search->text);
+
+	window.draw(input_name->rect);
+	window.draw(input_name->text);
 }
 
 // debug
@@ -86,7 +85,7 @@ void Lobby::updateDHT() {
 		// debug
 		lobby_players.clear();
 		for (int i = 0; i < 256; i++) {
-			lobby_players.push_back(new LobbyPlayer(i, to_string(i)));
+			lobby_players.push_back(new LobbyPlayer(i, generateRandomString(MAX_NAME_LENGTH)));
 		}
 
 		dht = node->dht;
@@ -96,11 +95,15 @@ void Lobby::updateDHT() {
 }
 
 void Lobby::applyFilter(string expression) {
-	regex pattern(".*" + expression + ".*", regex_constants::icase);
+	string lowercase_expression = expression;
+	transform(lowercase_expression.begin(), lowercase_expression.end(), lowercase_expression.begin(), [](unsigned char c) {return tolower(c);});
 
 	filtered_lobby_players.clear();
 	for (LobbyPlayer* lobby_player : lobby_players) {
-		if (regex_match(lobby_player->name, pattern)) {
+		string lowercase_name = lobby_player->name;
+		transform(lowercase_name.begin(), lowercase_name.end(), lowercase_name.begin(), [](unsigned char c) {return tolower(c);});
+
+		if (lowercase_name.find(lowercase_expression) != string::npos) {
 			filtered_lobby_players.push_back(lobby_player);
 		}
 	}
@@ -113,14 +116,14 @@ void Lobby::openPage(int new_page) {
 	next = false;
 
 	for (LobbyPlayer* lobby_player : page_lobby_players) {
-		lobby_player->piece->tile->piece = NULL;
+		lobby_player->piece->tile->lobby_player = nullptr;
 	}
 
 	if (filtered_lobby_players.size() <= 64) {
 		page_lobby_players = filtered_lobby_players;
 
 		for (int i = 0; i < page_lobby_players.size(); i++) {
-			page_lobby_players[i]->moveTo(tiles[i / 8][i % 8], player);
+			page_lobby_players[i]->moveTo(tiles[i / 8][i % 8]);
 		}
 	}
 	else if (new_page == 0) {
@@ -128,7 +131,7 @@ void Lobby::openPage(int new_page) {
 		next = true;
 
 		for (int i = 0; i < 63; i++) {
-			page_lobby_players[i]->moveTo(tiles[i / 8][i % 8], player);
+			page_lobby_players[i]->moveTo(tiles[i / 8][i % 8]);
 		}
 	}
 	else if (filtered_lobby_players.size() - (new_page * 62 + 1) <= 63) {
@@ -137,10 +140,10 @@ void Lobby::openPage(int new_page) {
 
 		int i;
 		for (i = 0; i < 56 && i < filtered_lobby_players.size() - (new_page * 62 + 1); i++) {
-			page_lobby_players[i]->moveTo(tiles[i / 8][i % 8], player);
+			page_lobby_players[i]->moveTo(tiles[i / 8][i % 8]);
 		}
 		for (int j = 1; j < 8 && i < filtered_lobby_players.size() - (new_page * 62 + 1); j++) {
-			page_lobby_players[i]->moveTo(tiles[7][j], player);
+			page_lobby_players[i]->moveTo(tiles[7][j]);
 			i++;
 		}
 	}
@@ -151,38 +154,46 @@ void Lobby::openPage(int new_page) {
 
 		int i;
 		for (i = 0; i < 56; i++) {
-			page_lobby_players[i]->moveTo(tiles[i / 8][i % 8], player);
+			page_lobby_players[i]->moveTo(tiles[i / 8][i % 8]);
 		}
 		for (int j = 1; j < 7; j++) {
-			page_lobby_players[i]->moveTo(tiles[7][j], player);
+			page_lobby_players[i]->moveTo(tiles[7][j]);
 			i++;
 		}
 	}
 }
 
-void Lobby::selectTile(Tile* tile) {
+void Lobby::selectTile(LobbyTile* tile) {
 	tile->select();
 	selected_tile = tile;
+
+	button_start->changeSubtext("against " + tile->lobby_player->name);
 }
 
-void Lobby::deselectTile(Tile* tile) {
+void Lobby::deselectTile(LobbyTile* tile) {
 	tile->deselect();
-	selected_tile = NULL;
+	selected_tile = nullptr;
+
+	button_start->changeSubtext("against random");
 }
 
 void Lobby::handlePress(int x, int y) {
+	if (button_start->activated) {
+		if (button_start->checkClick(x, y)) button_start->click();
+		return;
+	}
+
 	if (active_input != nullptr) { // change to shared_ptr
 		if (!active_input->checkClick(x, y)) {
-			active_input->unfocus();;
-			active_input = nullptr;
+			if (!(active_input == input_name && button_edit->checkClick(x, y))) active_input->unfocus();
 		}
 	}
 
 	if (x <= TILESIZE * 8 && y <= TILESIZE * 8) {
-		Tile* pressed = tiles[y / TILESIZE][x / TILESIZE];
+		LobbyTile* pressed = tiles[y / TILESIZE][x / TILESIZE];
 
 		if (!selected_tile) {
-			if (pressed->piece) {
+			if (pressed->lobby_player) {
 				selectTile(pressed);
 			}
 			else if (previous && pressed->row == 7 && pressed->column == 0) {
@@ -198,7 +209,7 @@ void Lobby::handlePress(int x, int y) {
 			if (pressed->selected) {
 				deselectTile(selected_tile);
 			}
-			else if (pressed->piece) {
+			else if (pressed->lobby_player) {
 				deselectTile(selected_tile);
 				selectTile(pressed);
 			}
@@ -219,17 +230,13 @@ void Lobby::handlePress(int x, int y) {
 	}
 	else {
 		if (active_input == nullptr) { // change to shared_ptr
-			for (LobbyInput* input : inputs) {
-				if (input->checkClick(x, y)) {
-					active_input = input;
-					active_input->focus();
-					if (selected_tile) deselectTile(selected_tile);
-				}
+			if (input_search->checkClick(x, y)) {
+				input_search->focus();
+				if (selected_tile) deselectTile(selected_tile);
 			}
 		}
 
-		for (LobbyButton* button : buttons) {
-			if (button->checkClick(x, y)) button->click();
-		}
+		if (button_start->checkClick(x, y)) button_start->click();
+		if (button_edit->checkClick(x, y)) button_edit->click();
 	}
 }

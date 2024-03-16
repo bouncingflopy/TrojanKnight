@@ -64,6 +64,7 @@ public:
 	void relay(int target_id, string payload);
 	void disconnect(int id);
 	void copyConnections(vector<shared_ptr<Connection>>& copy);
+	void changeName(string name);
 };
 
 struct RelaySession {

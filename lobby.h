@@ -2,11 +2,11 @@
 #define LOBBY_H
 
 #include <SFML/Graphics.hpp>
-#include <regex>
+#include <algorithm>
+#include <cctype>
+#include <string>
 
 #include "node.h"
-#include "tiles.h"
-#include "player.h"
 #include "lobbyplayer.h"
 #include "boardsettings.h"
 #include "resourceloader.h"
@@ -14,18 +14,20 @@
 using namespace std;
 
 class Node;
-class Tile;
-class Player;
+class LobbyTile;
 class LobbyPlayer;
 class LobbyButton;
 class LobbyInput;
+class LobbySearch;
+class LobbyName;
+class LobbyButtonStart;
+class LobbyButtonEdit;
 
 class Lobby {
 public:
 	Node* node;
-	Tile*** tiles;
-	Tile* selected_tile;
-	Player* player;
+	LobbyTile*** tiles;
+	LobbyTile* selected_tile;
 	DHT dht;
 	vector<LobbyPlayer*> lobby_players;
 	vector<LobbyPlayer*> filtered_lobby_players;
@@ -37,19 +39,21 @@ public:
 	sf::Texture next_texture;
 	sf::Sprite previous_sprite;
 	sf::Sprite next_sprite;
-	vector<LobbyButton*> buttons;
-	vector<LobbyInput*> inputs;
+	LobbySearch* input_search;
+	LobbyName* input_name;
+	LobbyButtonStart* button_start;
+	LobbyButtonEdit* button_edit;
 	LobbyInput* active_input = nullptr;
 
 	Lobby(Node* n);
 	void createArrows();
-	Tile*** createTiles();
+	LobbyTile*** createTiles();
 	void draw(sf::RenderWindow& window);
 	void updateDHT();
 	void applyFilter(string expression);
 	void openPage(int new_page);
-	void selectTile(Tile* tile);
-	void deselectTile(Tile* tile);
+	void selectTile(LobbyTile* tile);
+	void deselectTile(LobbyTile* tile);
 	void handlePress(int x, int y);
 };
 
@@ -57,30 +61,40 @@ class LobbyButton {
 public:
 	Lobby* lobby;
 	sf::RectangleShape rect;
-	vector<sf::Font*> fonts;
-	vector<sf::Text*> texts;
-	sf::Texture texture;
-	sf::Sprite sprite;
-	bool has_text;
+	bool activated = false;
 
 	LobbyButton(Lobby* l);
 	void createRect(sf::Vector2f size, sf::Vector2f position, sf::Color color);
-	void createText(string f, int char_size, string t, sf::Vector2f position_offset, sf::Color color, bool bold);
-	void createSprite(string file);
 	bool checkClick(int x, int y);
+	virtual void activate();
+	virtual void deactivate();
 	virtual void click();
 };
 
 class LobbyButtonStart : public LobbyButton{
 public:
+	sf::Font font;
+	sf::Text text;
+	sf::Text subtext;
+
 	LobbyButtonStart(Lobby* l);
-	void changeSubtext(string subtext);
+	void createText(sf::Text& current_text, int font_size, string t, int height_offset, sf::Color color, bool bold);
+	void changeSubtext(string new_subtext);
+	void activate();
+	void deactivate();
 	void click();
 };
 
 class LobbyButtonEdit : public LobbyButton {
 public:
-	LobbyButtonEdit(Lobby* l);
+	LobbyName* input;
+	sf::Texture texture;
+	sf::Sprite sprite;
+
+	LobbyButtonEdit(Lobby* l, LobbyInput* i);
+	void createSprite(string file);
+	void activate();
+	void deactivate();
 	void click();
 };
 
@@ -90,26 +104,43 @@ public:
 	sf::RectangleShape rect;
 	sf::Font font;
 	sf::Text text;
-	string placeholder;
 	bool centered;
+	string value;
+	bool focused;
+	int max_length = MAX_NAME_LENGTH;
+	int font_size = 12;
+	int max_width = 100;
+	float height_offset = 1;
 
-	LobbyInput(Lobby* l, string p, bool c);
+	LobbyInput(Lobby* l, bool c);
 	void createRect(sf::Vector2f size, sf::Vector2f position, sf::Color color);
-	void createText(string f, int char_size, sf::Color color, bool bold);
+	void createText(string f, sf::Color color, bool bold);
 	bool checkClick(int x, int y);
-	void changeText(string new_text);
+	void displayText(string display);
+	virtual void handleEnter();
+	void handleUnicode(uint32_t unicode);
+	virtual void changedText();
 	void focus();
-	void unfocus();
+	virtual void unfocus();
 };
 
 class LobbySearch : public LobbyInput {
 public:
+	string placeholder;
+
 	LobbySearch(Lobby* l);
+	void changedText();
+	void unfocus();
 };
 
 class LobbyName : public LobbyInput {
 public:
+	LobbyButtonEdit* edit;
+	string name;
+
 	LobbyName(Lobby* l);
+	void handleEnter();
+	void unfocus();
 };
 
 #endif

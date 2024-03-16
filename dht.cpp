@@ -47,7 +47,7 @@ DHT::DHT(string dht) {
 }
 
 string DHT::toString() {
-	string dht = "";
+	string dht;
 	
 	dht += to_string(version) + "\n-\n";
 

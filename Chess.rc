@@ -52,9 +52,9 @@ END
 
 IDB_PNG1                101                     "resources\\draw.png"
 
-IDB_PNG2                101                     "resources\\draw_v.png"
+IDB_PNG2                101                     "resources\\v.png"
 
-IDB_PNG3                101                     "resources\\draw_x.png"
+IDB_PNG3                101                     "resources\\x.png"
 
 IDB_PNG4                101                     "resources\\resign.png"
 

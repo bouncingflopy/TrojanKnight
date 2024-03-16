@@ -19,12 +19,12 @@ void Name::createSprite() {
     text.setCharacterSize(NAME_FONTSIZE);
 
     int fontsize = NAME_FONTSIZE;
-    while (text.getLocalBounds().width > NAME_MAX_WIDTH) { // NO
+    while (text.getGlobalBounds().width > NAME_MAX_WIDTH) { // NO
         fontsize--;
         text.setCharacterSize(fontsize);
     }
 
-    text.setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text.getLocalBounds().width / 2 + NAME_WIDTH_BUFFER, TILESIZE * 4 + (((player == me) ? 1 : -1) * (NAME_DISTANCE)) - text.getLocalBounds().height / 2 + NAME_HEIGHT_BUFFER));
+    text.setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text.getGlobalBounds().width / 2 + NAME_WIDTH_BUFFER, TILESIZE * 4 + (((player == me) ? 1 : -1) * (NAME_DISTANCE)) - text.getGlobalBounds().height / 2 + NAME_HEIGHT_BUFFER));
     text.setFillColor(NAME_TEXT_FILL);
 }
 
@@ -43,7 +43,7 @@ void Timer::createSprite() {
     text.setFont(font);
     text.setCharacterSize(TIMER_FONTSIZE);
     text.setString("00:00");
-    text.setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text.getLocalBounds().width / 2 + TIMER_TEXT_WIDTH_BUFFER, TILESIZE * 4 + (((player == me) ? 1 : -1) * (TIMER_DISTANCE)) - text.getLocalBounds().height / 2 + TIMER_TEXT_HEIGHT_BUFFER));
+    text.setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text.getGlobalBounds().width / 2 + TIMER_TEXT_WIDTH_BUFFER, TILESIZE * 4 + (((player == me) ? 1 : -1) * (TIMER_DISTANCE)) - text.getGlobalBounds().height / 2 + TIMER_TEXT_HEIGHT_BUFFER));
     text.setFillColor((player == 1) ? TIMER_TEXT_FILL_WHITE : TIMER_TEXT_FILL_BLACK);
     text.setStyle(sf::Text::Bold);
 
@@ -140,7 +140,7 @@ ButtonDraw::ButtonDraw(Board* b) : Button::Button(b) {
 void ButtonDraw::updateState(bool received, bool canceled, bool accepted) {
     if (received) {
         offer_received = true;
-        createSprite("draw_v");
+        createSprite("v");
     }
     else if (canceled) {
         offer_received = false;
@@ -155,7 +155,7 @@ void ButtonDraw::updateState(bool received, bool canceled, bool accepted) {
 void ButtonDraw::click() {
     if (!offer_sent && !offer_received) {
         board->appendCPNP("draw offer");
-        createSprite("draw_x");
+        createSprite("x");
         offer_sent = true;
     }
     else if (offer_sent) {
@@ -171,7 +171,7 @@ void ButtonDraw::click() {
 }
 
 EndScreen::EndScreen(GameResult r, string w) : result(r), winner(w) {
-    tie = winner == "";
+    tie = winner.empty();
 
     rect.setSize(ENDSCREEN_RECT_SIZE);
     rect.setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - ENDSCREEN_RECT_SIZE.x / 2, TILESIZE * 4 - ENDSCREEN_RECT_SIZE.y / 2));
@@ -185,18 +185,18 @@ EndScreen::EndScreen(GameResult r, string w) : result(r), winner(w) {
     text[0].setCharacterSize(ENDSCREEN_FONTSIZE_NAME);
 
     int fontsize = ENDSCREEN_FONTSIZE_NAME;
-    while (text[0].getLocalBounds().width > ENDSCREEN_NAME_MAX_WIDTH) {
+    while (text[0].getGlobalBounds().width > ENDSCREEN_NAME_MAX_WIDTH) {
         fontsize--;
         text[0].setCharacterSize(fontsize);
     }
 
-    text[0].setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text[0].getLocalBounds().width / 2 + ENDSCREEN_NAME_WIDTH_BUFFER, TILESIZE * 4 - text[0].getLocalBounds().height / 2 + ENDSCREEN_NAME_HEIGHT));
+    text[0].setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text[0].getGlobalBounds().width / 2 + ENDSCREEN_NAME_WIDTH_BUFFER, TILESIZE * 4 - text[0].getGlobalBounds().height / 2 + ENDSCREEN_NAME_HEIGHT));
     text[0].setFillColor(ENDSCREEN_NAME_FILL);
 
     text[1].setFont(font);
     text[1].setCharacterSize(ENDSCREEN_FONTSIZE_BY);
     text[1].setString(tie ? "by" : "won by");
-    text[1].setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text[1].getLocalBounds().width / 2 + ENDSCREEN_BY_WIDTH_BUFFER, TILESIZE * 4 - text[1].getLocalBounds().height / 2 + ENDSCREEN_BY_HEIGHT));
+    text[1].setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text[1].getGlobalBounds().width / 2 + ENDSCREEN_BY_WIDTH_BUFFER, TILESIZE * 4 - text[1].getGlobalBounds().height / 2 + ENDSCREEN_BY_HEIGHT));
     text[1].setFillColor(ENDSCREEN_BY_FILL);
     text[1].setStyle(sf::Text::Bold);
 
@@ -206,12 +206,12 @@ EndScreen::EndScreen(GameResult r, string w) : result(r), winner(w) {
     text[2].setCharacterSize(ENDSCREEN_FONTSIZE_RESULT);
 
     fontsize = ENDSCREEN_FONTSIZE_RESULT;
-    while (text[2].getLocalBounds().width > ENDSCREEN_RESULT_MAX_WIDTH) {
+    while (text[2].getGlobalBounds().width > ENDSCREEN_RESULT_MAX_WIDTH) {
         fontsize--;
         text[2].setCharacterSize(fontsize);
     }
 
-    text[2].setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text[2].getLocalBounds().width / 2 + ENDSCREEN_RESULT_WIDTH_BUFFER, TILESIZE * 4 - text[2].getLocalBounds().height / 2 + ENDSCREEN_RESULT_HEIGHT));
+    text[2].setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text[2].getGlobalBounds().width / 2 + ENDSCREEN_RESULT_WIDTH_BUFFER, TILESIZE * 4 - text[2].getGlobalBounds().height / 2 + ENDSCREEN_RESULT_HEIGHT));
     text[2].setFillColor(ENDSCREEN_RESULT_FILL);
 }
 

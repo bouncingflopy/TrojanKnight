@@ -29,7 +29,7 @@ string Board::moveToCPNP(Move* move) {
 string Board::getNotationFromTile(Tile* tile) {
 	char letter = 'a' + tile->column;
 	char number = '1' + (7 - tile->row);
-	string notation = "";
+	string notation;
 	notation += letter;
 	notation += number;
 
@@ -180,7 +180,7 @@ string Board::popMessage() {
 	message_waiting = false;
 
 	string temp = message;
-	message = "";
+	message.clear();
 
 	return temp;
 }

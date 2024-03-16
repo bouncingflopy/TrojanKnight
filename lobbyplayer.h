@@ -1,16 +1,20 @@
 #ifndef LOBBYPLAYER_H
 #define LOBBYPLAYER_H
 
-#include "pieces.h"
-#include "tiles.h"
-#include "player.h"
+#include <string>
 
-class Piece;
-class Tile;
+#include "lobbypiece.h"
+#include "lobbytile.h"
+#include "boardsettings.h"
+
+using namespace std;
+
+class LobbyPiece;
+class LobbyTile;
 
 class LobbyPlayer {
 public:
-	Piece* piece;
+	LobbyPiece* piece;
 	int id;
 	string name;
 	sf::RectangleShape rect;
@@ -18,7 +22,7 @@ public:
 	sf::Text text;
 
 	LobbyPlayer(int i, string n);
-	void moveTo(Tile* tile, Player* player);
+	void moveTo(LobbyTile* tile);
 };
 
 #endif
