@@ -4,6 +4,8 @@
 
 using namespace std;
 
+Connection::Connection() {}
+
 Connection::Connection(string i, int p, int d) : ip(i), port(p), id(d) {
 	asio::io_context::work idleWork(context);
 	context_thread = thread([&]() {context.run();});
@@ -11,19 +13,6 @@ Connection::Connection(string i, int p, int d) : ip(i), port(p), id(d) {
 	socket = make_shared<asio::ip::udp::socket>(context);
 	socket->open(asio::ip::udp::v4());
 	asio::ip::udp::endpoint local_endpoint = asio::ip::udp::endpoint(asio::ip::make_address("0.0.0.0"), 0);
-	socket->bind(local_endpoint);
-
-	asio::ip::udp::endpoint e = asio::ip::udp::endpoint(asio::ip::make_address(ip), port);
-	connect(e);
-}
-
-Connection::Connection(string i, int p, int d, int my_port) : ip(i), port(p), id(d) {
-	asio::io_context::work idleWork(context);
-	context_thread = thread([&]() {context.run();});
-
-	socket = make_shared<asio::ip::udp::socket>(context);
-	socket->open(asio::ip::udp::v4());
-	asio::ip::udp::endpoint local_endpoint = asio::ip::udp::endpoint(asio::ip::make_address("0.0.0.0"), my_port);
 	socket->bind(local_endpoint);
 
 	asio::ip::udp::endpoint e = asio::ip::udp::endpoint(asio::ip::make_address(ip), port);
@@ -116,6 +105,46 @@ void Connection::change(string i, int p, int d) {
 
 	asio::ip::udp::endpoint e = asio::ip::udp::endpoint(asio::ip::make_address(ip), port);
 	connect(e);
+}
+
+void Connection::releaseChess() {
+	chess_connection = false;
+	board.reset();
+}
+
+RootConnection::RootConnection(string i, int p, int d, int my_port) {
+	ip = i;
+	port = p;
+	id = d;
+
+	asio::io_context::work idleWork(context);
+	context_thread = thread([&]() {context.run();});
+
+	socket = make_shared<asio::ip::udp::socket>(context);
+	socket->open(asio::ip::udp::v4());
+	asio::ip::udp::endpoint local_endpoint = asio::ip::udp::endpoint(asio::ip::make_address("0.0.0.0"), my_port);
+	socket->bind(local_endpoint);
+
+	connect();
+}
+
+void RootConnection::connect() {
+	asyncReadData();
+	
+	time_point start = chrono::high_resolution_clock::now();
+	time_point now;
+	int time_passed = 0;
+
+	while (!connected && time_passed < HANDSHAKE_TIME) {
+		this_thread::sleep_for(chrono::milliseconds(HANDSHAKE_FREQUENCY));
+
+		now = chrono::high_resolution_clock::now();
+		time_passed = chrono::duration_cast<chrono::seconds>(now - start).count();
+	}
+
+	if (connected) {
+		keepalive = chrono::high_resolution_clock::now();
+	}
 }
 
 OpenConnection::OpenConnection() {

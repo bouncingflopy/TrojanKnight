@@ -16,12 +16,13 @@ void Name::createSprite() {
     text.setFont(font);
     text.setString(name);
     text.setStyle(sf::Text::Bold);
-    text.setCharacterSize(NAME_FONTSIZE);
 
-    int fontsize = NAME_FONTSIZE;
-    while (text.getGlobalBounds().width > NAME_MAX_WIDTH) { // NO
-        fontsize--;
-        text.setCharacterSize(fontsize);
+    text.setCharacterSize(NAME_FONTSIZE);
+    int scaled_font_size = NAME_FONTSIZE;
+    if (text.getGlobalBounds().width > NAME_MAX_WIDTH) {
+        float scale = 1.f * text.getGlobalBounds().width / NAME_MAX_WIDTH;
+        scaled_font_size = static_cast<int>(NAME_FONTSIZE / scale);
+        text.setCharacterSize(scaled_font_size);
     }
 
     text.setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text.getGlobalBounds().width / 2 + NAME_WIDTH_BUFFER, TILESIZE * 4 + (((player == me) ? 1 : -1) * (NAME_DISTANCE)) - text.getGlobalBounds().height / 2 + NAME_HEIGHT_BUFFER));
@@ -170,7 +171,7 @@ void ButtonDraw::click() {
     }
 }
 
-EndScreen::EndScreen(GameResult r, string w) : result(r), winner(w) {
+EndScreen::EndScreen(Board* b, GameResult r, string w) : board(b), result(r), winner(w) {
     tie = winner.empty();
 
     rect.setSize(ENDSCREEN_RECT_SIZE);
@@ -182,12 +183,13 @@ EndScreen::EndScreen(GameResult r, string w) : result(r), winner(w) {
     text[0].setFont(font);
     text[0].setString(tie ? "draw" : winner);
     text[0].setStyle(sf::Text::Bold);
-    text[0].setCharacterSize(ENDSCREEN_FONTSIZE_NAME);
 
-    int fontsize = ENDSCREEN_FONTSIZE_NAME;
-    while (text[0].getGlobalBounds().width > ENDSCREEN_NAME_MAX_WIDTH) {
-        fontsize--;
-        text[0].setCharacterSize(fontsize);
+    text[0].setCharacterSize(ENDSCREEN_FONTSIZE_NAME);
+    int scaled_font_size = ENDSCREEN_FONTSIZE_NAME;
+    if (text[0].getGlobalBounds().width > ENDSCREEN_NAME_MAX_WIDTH) {
+        float scale = 1.f * text[0].getGlobalBounds().width / ENDSCREEN_NAME_MAX_WIDTH;
+        scaled_font_size = static_cast<int>(ENDSCREEN_FONTSIZE_NAME / scale);
+        text[0].setCharacterSize(scaled_font_size);
     }
 
     text[0].setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text[0].getGlobalBounds().width / 2 + ENDSCREEN_NAME_WIDTH_BUFFER, TILESIZE * 4 - text[0].getGlobalBounds().height / 2 + ENDSCREEN_NAME_HEIGHT));
@@ -203,12 +205,13 @@ EndScreen::EndScreen(GameResult r, string w) : result(r), winner(w) {
     text[2].setFont(font);
     text[2].setString(stringify(result));
     text[2].setStyle(sf::Text::Bold);
-    text[2].setCharacterSize(ENDSCREEN_FONTSIZE_RESULT);
 
-    fontsize = ENDSCREEN_FONTSIZE_RESULT;
-    while (text[2].getGlobalBounds().width > ENDSCREEN_RESULT_MAX_WIDTH) {
-        fontsize--;
-        text[2].setCharacterSize(fontsize);
+    text[2].setCharacterSize(ENDSCREEN_FONTSIZE_RESULT);
+    scaled_font_size = ENDSCREEN_FONTSIZE_RESULT;
+    if (text[2].getGlobalBounds().width > ENDSCREEN_RESULT_MAX_WIDTH) {
+        float scale = 1.f * text[2].getGlobalBounds().width / ENDSCREEN_RESULT_MAX_WIDTH;
+        scaled_font_size = static_cast<int>(ENDSCREEN_FONTSIZE_RESULT / scale);
+        text[2].setCharacterSize(scaled_font_size);
     }
 
     text[2].setPosition(sf::Vector2f(TILESIZE * 8 + SIDEBAR / 2 - text[2].getGlobalBounds().width / 2 + ENDSCREEN_RESULT_WIDTH_BUFFER, TILESIZE * 4 - text[2].getGlobalBounds().height / 2 + ENDSCREEN_RESULT_HEIGHT));
@@ -230,4 +233,18 @@ string EndScreen::stringify(GameResult result) {
     else if (result == error_sync) return "synchronization issues";
     else if (result == disconnected) return "disconnected";
     else return "";
+}
+
+bool EndScreen::checkClick(int x, int y) {
+    if (x >= rect.getPosition().x && x <= rect.getPosition().x + rect.getSize().x) {
+        if (y >= rect.getPosition().y && y <= rect.getPosition().y + rect.getSize().y) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void EndScreen::click() {
+    board->running = false;
 }

@@ -1,6 +1,6 @@
 #include "dhtdisplay.h"
 
-void display(const DHT& dht, sf::Image& image, sf::Sprite& sprite, sf::Texture& texture) {
+bool display(const DHT& dht, sf::Image& image, sf::Sprite& sprite, sf::Texture& texture) {
     ofstream dotFile("graph.dot");
     dotFile << "graph G {\n";
 
@@ -21,21 +21,18 @@ void display(const DHT& dht, sf::Image& image, sf::Sprite& sprite, sf::Texture& 
     dotFile << "}\n";
     dotFile.close();
 
-    string command = "dot -Tpng graph.dot -o graph.png";
+    string command = "dot -Tpng graph.dot -o graph.png > NUL 2>&1";
     int result = system(command.c_str());
 
     if (result == 0) {
         if (image.loadFromFile("graph.png")) {
             texture.loadFromImage(image);
             sprite = sf::Sprite(texture);
-        }
-        else {
-            cerr << "Error loading graph image.\n";
+            return true;
         }
     }
-    else {
-        cerr << "Error generating graph image.\n";
-    }
+
+    return false;
 }
 
 void dhtDisplay(const DHT& dht) {
@@ -48,12 +45,12 @@ void dhtDisplay(const DHT& dht) {
 
     while (true) {
         if (old_version != dht.version) {
-            display(dht, image, sprite, texture);
-
-            if (window) window->close();
-            window = make_shared<sf::RenderWindow>(sf::VideoMode(image.getSize().x, image.getSize().y), "DHT Graph");
-            window->draw(sprite);
-            window->display();
+            if (display(dht, image, sprite, texture)) {
+                if (window) window->close();
+                window = make_shared<sf::RenderWindow>(sf::VideoMode(image.getSize().x, image.getSize().y), "DHT Graph");
+                window->draw(sprite);
+                window->display();
+            }
 
             old_version = dht.version;
         }

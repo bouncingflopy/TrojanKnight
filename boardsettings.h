@@ -88,8 +88,11 @@ const int LOBBY_PLAYER_NAME_TEXT_HEIGHT_OFFSET = -12;
 const sf::Color LOBBY_PLAYER_NAME_COLOR(0, 0, 0);
 const float LOBBY_ARROW_SCALE = 0.7f;
 
+const string LOBBY_START_PLACEHOLDER = "choose opponent";
 const sf::Vector2f LOBBY_START_SIZE(250, 150);
-const sf::Color LOBBY_START_COLOR(15, 189, 43);
+const sf::Color LOBBY_START_UNCLICKABLE_COLOR(98, 98, 102);
+const sf::Color LOBBY_START_CLICKABLE_COLOR(15, 189, 43);
+const sf::Color LOBBY_START_ACTIVE_COLOR(210, 32, 39);
 const string LOBBY_START_FONT = "helvetica";
 const int LOBBY_START_TEXT_FONTSIZE = 42;
 const int LOBBY_START_TEXT_HEIGHT_OFFSET = -30;
@@ -126,5 +129,25 @@ const float LOBBY_NAME_TEXT_HEIGHT_OFFSET = 1.15f;
 const sf::Color LOBBY_NAME_TEXT_COLOR(0, 0, 0);
 
 const int MAX_NAME_LENGTH = 8;
+
+const sf::Vector2f LOBBY_INVITE_SIZE(225, 175);
+const sf::Vector2f LOBBY_INVITE_POSITION(0, 200);
+const sf::Color LOBBY_INVITE_COLOR(56, 121, 175);
+const string LOBBY_INVITE_FONT = "helvetica";
+const int LOBBY_INVITE_TEXT_FONTSIZE = 42;
+const sf::Vector2f LOBBY_INVITE_TEXT_OFFSET(-8, -55);
+const int LOBBY_INVITE_TEXT_MAX_WIDTH = 200;
+const sf::Color LOBBY_INVITE_TEXT_COLOR(0, 0, 0);
+const int LOBBY_INVITE_SUBTEXT_FONTSIZE = 32;
+const sf::Vector2f LOBBY_INVITE_SUBTEXT_OFFSET(-5, -10);
+const int LOBBY_INVITE_SUBTEXT_MAX_WIDTH = 150;
+const sf::Color LOBBY_INVITE_SUBTEXT_COLOR(0, 0, 0);
+
+const sf::Vector2f LOBBY_INVITE_V_SIZE(75, 45);
+const sf::Vector2f LOBBY_INVITE_V_POSITION(-50, 255);
+const sf::Color LOBBY_INVITE_V_COLOR(13, 249, 25);
+const sf::Vector2f LOBBY_INVITE_X_SIZE(75, 45);
+const sf::Vector2f LOBBY_INVITE_X_POSITION(50, 255);
+const sf::Color LOBBY_INVITE_X_COLOR(249, 13, 25);
 
 #endif

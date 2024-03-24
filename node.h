@@ -15,6 +15,7 @@ struct DHT;
 struct Message;
 struct RelaySession;
 struct PunchholePair;
+struct ChessInvite;
 
 class Node {
 public:
@@ -23,6 +24,7 @@ public:
 	vector<shared_ptr<Connection>> connections;
 	shared_ptr<Connection> rootConnection;
 	shared_ptr<Connection> punchholeRC;
+	shared_ptr<Connection> chess_connection;
 	time_point punchholeRC_creation;
 	bool is_root = false;
 	bool is_reroot = false;
@@ -39,10 +41,12 @@ public:
 	mutex punchholeRC_mutex;
 	mutex connections_mutex;
 	shared_ptr<time_point> joined_time;
+	shared_ptr<ChessInvite> outgoing_invite;
+	vector<shared_ptr<ChessInvite>> incoming_invites;
+	vector<shared_ptr<ChessInvite>> outgoing_invites_history;
 
 	Node();
 	string getIP();
-	//string getPrivateIP();
 	string getDDNS();
 	void setDDNS(string ip);
 	void becomeRoot();
@@ -59,12 +63,20 @@ public:
 	bool connectToRoot();
 	bool connectToPunchholeRoot();
 	void punchholeConnect(string target_ip, int target_port, int target_id);
+	void simulatedPunchholeConnect(string target_ip, int target_port, int target_id);
 	vector<int> findPathToRoot();
 	vector<int> findPath(int id);
 	void relay(int target_id, string payload);
-	void disconnect(int id);
+	void disconnect(int target_id);
 	void copyConnections(vector<shared_ptr<Connection>>& copy);
 	void changeName(string name);
+	void sendInvite(int target_id);
+	void cancelInvite();
+	void acceptInvite();
+	void rejectInvite();
+	bool checkConnectedToNode(int target_id);
+	shared_ptr<Connection> getConnectionToNode(int target_id);
+	void createGame(int game);
 };
 
 struct RelaySession {
@@ -76,13 +88,23 @@ struct RelaySession {
 	RelaySession(int to, int from, int session);
 };
 
-// wan, wan punchhole, wan leave, wan reroot
+struct ChessInvite {
+	int to;
+	int from;
+	int game;
 
-// add and implement private ip connection, only query written
+	ChessInvite(int to, int from, int game);
+};
+
+// wan holepunching
+// wan reroot
+
+// add private ip connection
 // what if node sends root dht update (connect and disconnect) but root is rerooting or doesnt get it?
-// root check no one takes ddns, if im empty connect to them (mid reroot)
+// root check no one takes ddns, if im empty connect to them (mid reroot / root without pf)
 // add ttl for rootconnection?
 // node joining while reroot
+// check for name change race condition with api call to root
 
 /*
 
@@ -92,10 +114,9 @@ v	dht join
 v	dht connect 0 1
 v	dht disconnect 0 1
 v	dht leave 1
+v	dht rename 1 username
 v	punchhole request 0 1
 v	punchhole fail 0 1
-
-	private response 1 192.168.1.1
 
 */
 
@@ -117,8 +138,11 @@ v		...
 v	relay response [session] 1
 v		...
 v	disconnect 1
-
-	private query
+v	chess invite [from] 1 [game] 1
+v	chess cancel [game] 1
+v	chess accept [game] 1
+v	chess reject [game] 1
+v	chess start [game] 1
 
 */
 
@@ -135,6 +159,10 @@ ack
 // endcryption public key private key
 // node rootnode connection openconnection destructors for closing threads and queues?
 // delete unnecessary files (+ github)
+// add cool features like private key public key, signature, kademillia
+// optimize code and run times
+// add comments and documentation
+// patch vulnerabilies and improve security
 
 class RootNode {
 public:

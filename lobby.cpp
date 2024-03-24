@@ -11,7 +11,7 @@ Lobby::Lobby(Node* n) : node(n) {
 	input_name->edit = button_edit;
 
 	dht = DHT();
-	updateDHT();
+	update();
 }
 
 void Lobby::createArrows() {
@@ -58,7 +58,6 @@ void Lobby::draw(sf::RenderWindow& window) {
 
 	if (previous) window.draw(previous_sprite);
 	if (next) window.draw(next_sprite);
-
 	
 	window.draw(button_start->rect);
 	window.draw(button_start->text);
@@ -72,29 +71,79 @@ void Lobby::draw(sf::RenderWindow& window) {
 
 	window.draw(input_name->rect);
 	window.draw(input_name->text);
+
+	if (lobby_invite) {
+		window.draw(lobby_invite->rect);
+		window.draw(lobby_invite->text);
+		window.draw(lobby_invite->subtext);
+		window.draw(lobby_invite->button_v->rect);
+		window.draw(lobby_invite->button_v->sprite);
+		window.draw(lobby_invite->button_x->rect);
+		window.draw(lobby_invite->button_x->sprite);
+	}
 }
 
 // debug
 #include <random>
 string generateRandomString(int length) {random_device rd;mt19937 gen(rd());uniform_int_distribution<> disUppercase('A', 'Z');uniform_int_distribution<> disLowercase('a', 'z');string randomString;randomString.reserve(length);for (int i = 0; i < length; ++i) {if (std::uniform_int_distribution<>{0, 1}(gen) == 0) {randomString.push_back(static_cast<char>(disUppercase(gen)));}else {randomString.push_back(static_cast<char>(disLowercase(gen)));}}return randomString;}
 
-void Lobby::updateDHT() {
+void Lobby::update() {
 	if (!(node->dht == dht)) {
-		// implement updating lobby players
+		dht = node->dht;
 		
-		// debug
+		/*// debug
 		lobby_players.clear();
 		for (int i = 0; i < 256; i++) {
 			lobby_players.push_back(new LobbyPlayer(i, generateRandomString(MAX_NAME_LENGTH)));
+		}*/
+
+		lobby_players.clear();
+		
+		vector<shared_ptr<DHTNode>> copied_dht_nodes;
+		dht.copyNodes(copied_dht_nodes);
+
+		for (shared_ptr<DHTNode>& dht_node : copied_dht_nodes) {
+			if (dht_node->level > -1) {
+				lobby_players.push_back(new LobbyPlayer(dht_node->id, dht_node->name));
+			}
 		}
 
-		dht = node->dht;
+		applyFilter(filter);
 
-		applyFilter("");
+		if (filtered_lobby_players.size() - (page * 62 + 1) <= 1) {
+			page--;
+			if (selected_tile) deselectTile(selected_tile);
+		}
+		openPage(page);
+
+		if (selected_tile) {
+			LobbyTile* copied_selected_tile = selected_tile;
+			deselectTile(selected_tile);
+			selectTile(copied_selected_tile);
+		}
 	}
+
+	if (node->incoming_invites.size() > 0 && (!incoming_invite || node->incoming_invites[0].get() != incoming_invite.get())) {
+		incoming_invite.reset();
+		lobby_invite.reset();
+		incoming_invite = node->incoming_invites[0];
+		displayInvite();
+	}
+	else if (incoming_invite && node->incoming_invites.size() == 0) {
+		incoming_invite.reset();
+		lobby_invite.reset();
+	}
+
+	if (button_start->activated && !node->outgoing_invite) {
+		button_start->deactivate();
+	}
+
+	if (node->chess_connection) running = false;
 }
 
 void Lobby::applyFilter(string expression) {
+	filter = expression;
+
 	string lowercase_expression = expression;
 	transform(lowercase_expression.begin(), lowercase_expression.end(), lowercase_expression.begin(), [](unsigned char c) {return tolower(c);});
 
@@ -163,18 +212,34 @@ void Lobby::openPage(int new_page) {
 	}
 }
 
+void Lobby::displayInvite() {
+	lobby_invite = make_shared<LobbyInvite>(this, dht.getNodeFromId(incoming_invite->from)->name);
+}
+
+void Lobby::acceptInvite() {
+	node->acceptInvite();
+	running = false;
+}
+
+void Lobby::rejectInvite() {
+	node->rejectInvite();
+	lobby_invite.reset();
+}
+
 void Lobby::selectTile(LobbyTile* tile) {
 	tile->select();
 	selected_tile = tile;
 
 	button_start->changeSubtext("against " + tile->lobby_player->name);
+	button_start->makeClickable();
 }
 
 void Lobby::deselectTile(LobbyTile* tile) {
 	tile->deselect();
 	selected_tile = nullptr;
 
-	button_start->changeSubtext("against random");
+	button_start->changeSubtext(LOBBY_START_PLACEHOLDER);
+	button_start->makeUnclickable();
 }
 
 void Lobby::handlePress(int x, int y) {
@@ -236,7 +301,11 @@ void Lobby::handlePress(int x, int y) {
 			}
 		}
 
-		if (button_start->checkClick(x, y)) button_start->click();
+		if (button_start->clickable && button_start->checkClick(x, y)) button_start->click();
 		if (button_edit->checkClick(x, y)) button_edit->click();
+		if (lobby_invite) {
+			if (lobby_invite->button_v->checkClick(x, y)) lobby_invite->button_v->click();
+			if (lobby_invite->button_x->checkClick(x, y)) lobby_invite->button_x->click();
+		}
 	}
 }

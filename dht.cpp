@@ -23,7 +23,7 @@ DHT::DHT(string dht) {
 		string temp;
 		while (getline(stream, temp, ' ')) words.push_back(temp);
 
-		shared_ptr<DHTNode> node = make_shared<DHTNode>(stoi(words[0]), stoi(words[1]), words[2]);
+		shared_ptr<DHTNode> node = make_shared<DHTNode>(stoi(words[0]), stoi(words[1]), words[2], words[3]);
 		nodes.push_back(node);
 	}
 	nodes_lock.unlock();
@@ -54,7 +54,7 @@ string DHT::toString() {
 	vector<shared_ptr<DHTNode>> copied_nodes;
 	copyNodes(copied_nodes);
 	for (shared_ptr<DHTNode>& node : copied_nodes) {
-		dht += to_string(node->id) + " " + to_string(node->level) + " " + node->ip + "\n";
+		dht += to_string(node->id) + " " + to_string(node->level) + " " + node->ip + " " + node->name + "\n";
 	}
 	dht += "-\n";
 
@@ -193,6 +193,24 @@ int DHT::getFreeId() {
 	return available;
 }
 
+bool DHT::checkNameFree(string name) {
+	lock_guard<mutex> lock(nodes_mutex);
+
+	for (int i = 0; i < nodes.size(); i++) {
+		if (nodes[i]->name == name) return false;
+	}
+
+	return true;
+}
+
+bool DHT::renameNode(int id, string name) {
+	shared_ptr<DHTNode> dht_node = getNodeFromId(id);
+	if (dht_node->id == -1) return false;
+
+	dht_node->name = name;
+	return true;
+}
+
 void DHT::calculateLevels() {
 	for (shared_ptr<DHTNode>& node : nodes) {
 		node->level = -1;
@@ -279,7 +297,11 @@ bool DHT::operator ==(DHT& other) {
 
 DHTNode::DHTNode() {};
 
-DHTNode::DHTNode(int id, int level, string ip) : id(id), level(level), ip(ip) {};
+DHTNode::DHTNode(int id, int level, string ip) : id(id), level(level), ip(ip) {
+	name = to_string(id);
+};
+
+DHTNode::DHTNode(int id, int level, string ip, string name) : id(id), level(level), ip(ip), name(name) {}
 
 bool DHTNode::operator ==(DHTNode const& node) {
 	return id == node.id;

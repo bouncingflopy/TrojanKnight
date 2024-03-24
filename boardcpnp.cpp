@@ -155,11 +155,6 @@ void Board::decodeCPNP(string message) {
 
 /*
 
-pnp
-	chess offer white rapid
-	chess accept
-	chess reject
-
 cpnp
 	timer dynamic 147 837
 	timer start 132 837

@@ -22,11 +22,14 @@ class LobbySearch;
 class LobbyName;
 class LobbyButtonStart;
 class LobbyButtonEdit;
+class LobbyButtonInvite;
+class LobbyInvite;
 
 class Lobby {
 public:
 	Node* node;
 	LobbyTile*** tiles;
+	bool running = true;
 	LobbyTile* selected_tile;
 	DHT dht;
 	vector<LobbyPlayer*> lobby_players;
@@ -35,6 +38,7 @@ public:
 	int page = 0;
 	bool previous;
 	bool next;
+	string filter = "";
 	sf::Texture previous_texture;
 	sf::Texture next_texture;
 	sf::Sprite previous_sprite;
@@ -44,14 +48,19 @@ public:
 	LobbyButtonStart* button_start;
 	LobbyButtonEdit* button_edit;
 	LobbyInput* active_input = nullptr;
+	shared_ptr<ChessInvite> incoming_invite;
+	shared_ptr<LobbyInvite> lobby_invite;
 
 	Lobby(Node* n);
 	void createArrows();
 	LobbyTile*** createTiles();
 	void draw(sf::RenderWindow& window);
-	void updateDHT();
+	void update();
 	void applyFilter(string expression);
 	void openPage(int new_page);
+	void displayInvite();
+	void acceptInvite();
+	void rejectInvite();
 	void selectTile(LobbyTile* tile);
 	void deselectTile(LobbyTile* tile);
 	void handlePress(int x, int y);
@@ -63,6 +72,7 @@ public:
 	sf::RectangleShape rect;
 	bool activated = false;
 
+	LobbyButton();
 	LobbyButton(Lobby* l);
 	void createRect(sf::Vector2f size, sf::Vector2f position, sf::Color color);
 	bool checkClick(int x, int y);
@@ -71,15 +81,33 @@ public:
 	virtual void click();
 };
 
-class LobbyButtonStart : public LobbyButton{
+class LobbyButtonInvite : public LobbyButton {
+public:
+	char action;
+	sf::Texture texture;
+	sf::Sprite sprite;
+
+	LobbyButtonInvite();
+	LobbyButtonInvite(Lobby* l, char c);
+	void initV();
+	void initX();
+	void createSprite(string file);
+	void click();
+};
+
+class LobbyButtonStart : public LobbyButton {
 public:
 	sf::Font font;
 	sf::Text text;
 	sf::Text subtext;
+	bool clickable = false;
 
 	LobbyButtonStart(Lobby* l);
 	void createText(sf::Text& current_text, int font_size, string t, int height_offset, sf::Color color, bool bold);
+	void changeText(string new_text);
 	void changeSubtext(string new_subtext);
+	void makeUnclickable();
+	void makeClickable();
 	void activate();
 	void deactivate();
 	void click();
@@ -141,6 +169,21 @@ public:
 	LobbyName(Lobby* l);
 	void handleEnter();
 	void unfocus();
+};
+
+class LobbyInvite {
+public:
+	Lobby* lobby;
+	sf::RectangleShape rect;
+	sf::Font font;
+	sf::Text text;
+	sf::Text subtext;
+	LobbyButtonInvite* button_v;
+	LobbyButtonInvite* button_x;
+
+	LobbyInvite(Lobby* l, string name);
+	void createRect(sf::Vector2f size, sf::Vector2f position, sf::Color color);
+	void createText(sf::Text& current_text, int font_size, string t, sf::Vector2f position_offset, int max_width, sf::Color color, bool bold);
 };
 
 #endif

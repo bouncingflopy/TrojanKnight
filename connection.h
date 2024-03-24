@@ -16,10 +16,12 @@
 
 #include "networksettings.h"
 #include "node.h"
+#include "board.h"
 
 using namespace std;
 
 class Node;
+class Board;
 
 class Connection {
 public:
@@ -34,10 +36,11 @@ public:
 	vector<char> read_buffer = vector<char>(1024);
 	queue<string> incoming_messages;
 	time_point keepalive;
+	bool chess_connection = false;
+	shared_ptr<Board> board;
 
 	Connection();
 	Connection(string i, int p, int id);
-	Connection(string i, int p, int id, int my_port);
 	~Connection();
 	bool checkNodeProtocol(string data);
 	void handleConnectionMessage(string data);
@@ -46,11 +49,18 @@ public:
 	void handshake();
 	void connect(asio::ip::udp::endpoint e);
 	void change(string i, int p, int id);
+	void releaseChess();
 };
 
 struct Message {
 	asio::ip::udp::endpoint endpoint;
 	string message;
+};
+
+class RootConnection : public Connection {
+public:
+	RootConnection(string i, int p, int id, int my_port);
+	void connect();
 };
 
 class OpenConnection {

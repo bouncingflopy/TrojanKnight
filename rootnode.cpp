@@ -117,7 +117,7 @@ void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint,
 	string message = "pnp\npunchhole info " + to_string(node->id) + " " + dht.nodes[0]->ip + " " + to_string(port);
 	admin->writeData(target_endpoint, message);
 
-	shared_ptr<Connection> connection = make_shared<Connection>(target_endpoint.address().to_string(), target_endpoint.port(), target_id, port);
+	shared_ptr<Connection> connection = make_shared<RootConnection>(target_endpoint.address().to_string(), target_endpoint.port(), target_id, port);
 	
 	if (connection->connected) {
 		unique_lock<mutex> lock(node->connections_mutex);

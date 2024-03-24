@@ -6,7 +6,7 @@
 #include "moves.h"
 #include "board.h"
 
-Board::Board(int m) : me(m) {
+Board::Board(shared_ptr<Connection> c, int m) : connection(c), me(m) {
     players = new Player * [2];
     players[0] = new Player(0, "black", me);
     players[1] = new Player(1, "white", me);
@@ -37,6 +37,9 @@ void Board::updateClocks() { // change to complete update (timers, input)
     for (int i = 0; i < 2; i++) {
         timers[i]->update();
     }
+
+    // temp, only here until full update
+    if (message_waiting) connection->writeData(popMessage());
 }
 
 void Board::draw(sf::RenderWindow& window) {
@@ -417,7 +420,9 @@ void Board::exitGame() {
     enabled = false;
     timers[turn]->stop();
 
-    end_screen = new EndScreen(game_result, winner);
+    end_screen = new EndScreen(this, game_result, winner);
+
+    connection->releaseChess();
 }
 
 void Board::changeTurn() {
@@ -636,6 +641,11 @@ void Board::displayPromotion(Move* move) {
 }
 
 void Board::handlePress(int x, int y) {
+    if (!enabled) {
+        if (end_screen->checkClick(x, y)) end_screen->click();
+        return;
+    }
+
     if (x <= TILESIZE * 8 && y <= TILESIZE * 8) {
         if (turn == turn) { // turn == me
             Tile* pressed = getTileAtPosition(x, y, me == 0);

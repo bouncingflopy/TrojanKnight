@@ -24,7 +24,19 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 			break;
 		}
 		else if (words[0] == "cpnp") {
-			continue; // add connection to board class and boardcpnp
+			if (connection->chess_connection) {
+				string data;
+				for (int j = i + 1; j < lines.size(); j++) {
+					data += lines[j];
+					if (j < lines.size() - 1) {
+						data += "\n";
+					}
+				}
+
+				connection->board->decodeCPNP(data);
+			}
+
+			break;
 		}
 		else if (words[0] == "pnp") {
 			continue; // force having pnp? (and rpnp)
@@ -85,10 +97,18 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 				punchholeRC->writeData(message);
 			}
 			else if (words[1] == "info") {
-				thread punchhole_thread([this, words]() {
-					punchholeConnect(words[3], stoi(words[4]), stoi(words[2]));
-					});
-				punchhole_thread.detach();
+				if (stoi(words[2]) == dht.nodes[0]->id) {
+					thread punchhole_thread([this, words]() {
+						simulatedPunchholeConnect(words[3], stoi(words[4]), stoi(words[2]));
+						});
+					punchhole_thread.detach();
+				}
+				else {
+					thread punchhole_thread([this, words]() {
+						punchholeConnect(words[3], stoi(words[4]), stoi(words[2]));
+						});
+					punchhole_thread.detach();
+				}
 			}
 		}
 		else if (words[0] == "success") {
@@ -192,6 +212,33 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 		}
 		else if (words[0] == "disconnect") {
 			disconnect(stoi(words[1]));
+		}
+		else if (words[0] == "chess") {
+			if (words[1] == "invite") {
+				incoming_invites.push_back(make_shared<ChessInvite>(id, stoi(words[2]), stoi(words[3])));
+			}
+			else if (words[1] == "cancel") {
+				for (int i = 0; i < incoming_invites.size(); i++) {
+					if (to_string(incoming_invites[i]->game) == words[2]) {
+						incoming_invites.erase(incoming_invites.begin() + i);
+						break;
+					}
+				}
+			}
+			else if (words[1] == "accept") {
+				thread game_thread([this, words]() {
+					createGame(stoi(words[2]));
+					});
+				game_thread.detach();
+			}
+			else if (words[1] == "reject") {
+				if (outgoing_invite->game == stoi(words[2])) outgoing_invite.reset();
+			}
+			else if (words[1] == "start") {
+				chess_connection = connection;
+				int me = stoi(words[2]) % 2 ^ (connection->id > id);
+				chess_connection->board = make_shared<Board>(chess_connection, me);
+			}
 		}
 	}
 }
@@ -444,6 +491,9 @@ void RootNode::handleMessage(string message) {
 
 				if (dht.deleteConnection(connection)) changedDHT();
 			}
+			else if (words[1] == "rename") {
+				if (dht.renameNode(stoi(words[2]), words[3])) changedDHT();
+			}
 		}
 	}
 }
@@ -505,6 +555,9 @@ void RootNode::handleMessage(shared_ptr<Connection> connection, string message) 
 			}
 			else if (words[1] == "leave") {
 				if (dht.deleteNode(stoi(words[2]))) changedDHT();
+			}
+			else if (words[1] == "rename") {
+				if (dht.renameNode(stoi(words[2]), words[3])) changedDHT();
 			}
 		}
 		else if (words[0] == "punchhole") {
@@ -591,6 +644,9 @@ void RootNode::handleMessage(RelaySession relay_session, shared_ptr<Connection> 
 			}
 			else if (words[1] == "leave") {
 				if (dht.deleteNode(stoi(words[2]))) changedDHT();
+			}
+			else if (words[1] == "rename") {
+				if (dht.renameNode(stoi(words[2]), words[3])) changedDHT();
 			}
 		}
 		else if (words[0] == "punchhole") {

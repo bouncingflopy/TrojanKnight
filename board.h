@@ -8,6 +8,7 @@
 #include <chrono>
 
 #include "boardsettings.h"
+#include "connection.h"
 
 using namespace std;
 
@@ -20,11 +21,13 @@ class PromotionTile;
 class EndScreen;
 class Timer;
 class Button;
+class Connection;
 
 class Board {
 public:
     Tile*** tiles;
     vector<Piece*> pieces;
+    bool running = true;
     vector<Move*> moveHistory;
     Player** players;
     int turn;
@@ -50,8 +53,9 @@ public:
     chrono::time_point<chrono::high_resolution_clock> start_time;
     int game_tick = 0;
     int last_reported_game_tick = 0;
+    shared_ptr<Connection> connection;
 
-    Board(int m);
+    Board(shared_ptr<Connection> c, int m);
     void updateClocks();
     void draw(sf::RenderWindow& window);
     Tile*** createTiles();

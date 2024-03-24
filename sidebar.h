@@ -86,6 +86,7 @@ public:
 
 class EndScreen {
 public:
+    Board* board;
     GameResult result;
     string winner;
     bool tie;
@@ -93,8 +94,10 @@ public:
     sf::Font font;
     sf::Text text[3];
 
-    EndScreen(GameResult r, string w);
+    EndScreen(Board* b, GameResult r, string w);
     string stringify(GameResult result);
+    bool checkClick(int x, int y);
+    void click();
 };
 
 #endif

@@ -37,9 +37,9 @@ Node::Node() {
 	dht = DHT();
 
 	ip = getIP();
-	/*string root = getDDNS();
+	string root = getDDNS();
 	
-	cout << "IP: " << ip << endl;
+	/*cout << "IP: " << ip << endl;
 	cout << "Root: " << root << endl;
 
 	if (ip == root) {
@@ -191,7 +191,7 @@ void Node::handleThread() {
 }
 
 int Node::pickNodeToConnect() {
-	// random implementation, this defines the structure of the network
+	// random, this defines the structure of the network
 	// keep some randomness to not get stuck in a loop if someones not working
 	vector<shared_ptr<DHTNode>> nodes;
 	vector<int> bad = {id};
@@ -256,8 +256,7 @@ void Node::manageConnections() { // make this on thread
 		for (int i = 0; i < connections.size() - 1; i++) {
 			if (connections[i]->id == dht.nodes[0]->id) continue;
 			if (dht.getNodeFromId(connections[i]->id)->connections.size() == 1) continue;
-
-			// dont disconnect if is chess connection
+			if (connections[i]->chess_connection) continue;
 
 			if (parent_found || dht.getNodeFromId(connections[i]->id)->level >= my_level) {
 				lock.unlock();
@@ -329,7 +328,6 @@ void Node::lookout() {
 			disconnect(bad_id);
 		}
 
-
 		for (int i = 0; i < relay_sessions.size(); i++) {
 			int time_passed = chrono::duration_cast<chrono::seconds>(now - relay_sessions[i].creation).count();
 			if (time_passed > SESSION_TTL) {
@@ -356,7 +354,6 @@ void Node::lookout() {
 				rootConnection.reset();
 				unique_lock<mutex> lock(punchholeRC_mutex);
 				punchholeRC.reset();
-				lock.unlock();
 				connecting = false;
 
 				if (connectToRoot()) {
@@ -367,6 +364,7 @@ void Node::lookout() {
 
 					connect();
 				}
+				lock.unlock();
 			}
 		}
 
@@ -389,6 +387,8 @@ void Node::lookout() {
 			setDDNS(dht.nodes[0]->ip);
 			becomeRoot();
 		}
+
+		if (chess_connection && !chess_connection->chess_connection) chess_connection.reset();
 
 		this_thread::sleep_for(chrono::milliseconds(LOOKOUT_CHECK_FREQUENCY));
 	}
@@ -420,8 +420,11 @@ void Node::keepalive() {
 
 bool Node::connectToRoot() {
 	if (rootConnection) return true;
-	
-	string root = getDDNS();
+
+	string root;
+	if (dht.nodes.size() == 0) root = getDDNS();
+	else root = dht.nodes[0]->ip;
+
 	rootConnection = make_shared<Connection>(root, ROOT_PORT, 0);
 
 	if (rootConnection->connected) return true;
@@ -435,7 +438,10 @@ bool Node::connectToRoot() {
 bool Node::connectToPunchholeRoot() {
 	if (punchholeRC) return false;
 
-	string root = getDDNS();
+	string root;
+	if (dht.nodes.size() == 0) root = getDDNS();
+	else root = dht.nodes[0]->ip;
+
 	punchholeRC = make_shared<Connection>(root, ROOT_PORT, 0);
 
 	if (punchholeRC->connected) {
@@ -463,15 +469,44 @@ void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
 		connections.push_back(connection);
 		connections_lock.unlock();
 
-		shared_ptr<DHTNode> a = dht.getNodeFromId(id);
-		shared_ptr<DHTNode> b = dht.getNodeFromId(target_id);
-
 		shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
 		dht.addConnection(dht_connection);
 
 		string message = "rpnp\ndht connect " + to_string(id) + " " + to_string(target_id);
 		relay(dht.nodes[0]->id, message);
 		
+		cout << to_string(id) << " == " << to_string(target_id) << endl;
+
+		in_network = true;
+		joined_time.reset();
+	}
+	else {
+		connection.reset();
+	}
+
+	connecting = false;
+
+	manageConnections();
+}
+
+void Node::simulatedPunchholeConnect(string target_ip, int target_port, int target_id) {
+	unique_lock<mutex> punchholeRC_lock(punchholeRC_mutex);
+	punchholeRC.reset();
+	punchholeRC_lock.unlock();
+
+	shared_ptr<Connection> connection = make_shared<Connection>(target_ip, target_port, target_id);
+
+	if (connection->connected) {
+		unique_lock<mutex> connections_lock(connections_mutex);
+		connections.push_back(connection);
+		connections_lock.unlock();
+
+		shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
+		dht.addConnection(dht_connection);
+
+		string message = "rpnp\ndht connect " + to_string(id) + " " + to_string(target_id);
+		relay(dht.nodes[0]->id, message);
+
 		cout << to_string(id) << " == " << to_string(target_id) << endl;
 
 		in_network = true;
@@ -643,47 +678,116 @@ void Node::copyConnections(vector<shared_ptr<Connection>>& copy) {
 }
 
 void Node::changeName(string name) {
-	cout << "change name in dht to " << name << "!" << endl; // implement
+	string message = "rpnp\ndht rename " + to_string(id) + " " + name;
+	relay(dht.nodes[0]->id, message);
 }
 
-//static bool is_private_ip(const asio::ip::address& addr) { // also copied from openai
-//	// Check for private IP address ranges
-//	if (addr.is_v4()) {
-//		asio::ip::address_v4::bytes_type bytes = addr.to_v4().to_bytes();
-//		uint8_t firstByte = bytes[0];
-//
-//		// Check for common private IPv4 address ranges
-//		if (firstByte == 10 || (firstByte == 192 && bytes[1] == 168) ||
-//			(firstByte == 172 && (bytes[1] >= 16 && bytes[1] <= 31))) {
-//			return true;
-//		}
-//	}
-//	else if (addr.is_v6()) {
-//		// Add logic to check for private IPv6 address ranges if needed
-//		// This example only handles IPv4 private addresses
-//	}
-//
-//	return false;
-//}
-//
-//string Node::getPrivateIP() { // copied from openai, doesnt necessarily work
-//	asio::io_service io;
-//	asio::ip::udp::resolver resolver(io);
-//	asio::ip::udp::resolver::query query(asio::ip::host_name(), "");
-//	asio::ip::udp::resolver::iterator iter = resolver.resolve(query);
-//	asio::ip::udp::resolver::iterator end; // End marker.
-//
-//	while (iter != end) {
-//		asio::ip::udp::endpoint ep = *iter++;
-//		if (is_private_ip(ep.address())) {
-//			std::cout << "Private IPv4 Address: " << ep.address().to_string() << std::endl;
-//			return ep.address().to_string();
-//		}
-//	}
-//
-//	return "";
-//}
+void Node::sendInvite(int target_id) {
+	outgoing_invite = make_shared<ChessInvite>(target_id, id, generateRandom(0, 999999));
+
+	string message = "pnp\nchess invite " + to_string(id) + " " + to_string(outgoing_invite->game);
+	relay(target_id, message);
+}
+
+void Node::cancelInvite() {
+	if (!outgoing_invite) return;
+
+	string message = "pnp\nchess cancel " + to_string(outgoing_invite->game);
+	relay(outgoing_invite->to, message);
+
+	outgoing_invites_history.push_back(outgoing_invite);
+	outgoing_invite.reset();
+}
+
+void Node::acceptInvite() {
+	if (incoming_invites.size() == 0) return;
+
+	string message = "pnp\nchess accept " + to_string(incoming_invites[0]->game);
+	relay(incoming_invites[0]->from, message);
+
+	incoming_invites.erase(incoming_invites.begin());
+}
+
+void Node::rejectInvite() {
+	if (incoming_invites.size() == 0) return;
+
+	string message = "pnp\nchess reject " + to_string(incoming_invites[0]->game);
+	relay(incoming_invites[0]->from, message);
+
+	incoming_invites.erase(incoming_invites.begin());
+}
+
+bool Node::checkConnectedToNode(int target_id) {
+	vector<shared_ptr<Connection>> copied_connections;
+	copyConnections(copied_connections);
+
+	for (int i = 0; i < copied_connections.size(); i++) {
+		if (copied_connections[i]->id == target_id) return true;
+	}
+
+	return false;
+}
+
+shared_ptr<Connection> Node::getConnectionToNode(int target_id) {
+	vector<shared_ptr<Connection>> copied_connections;
+	copyConnections(copied_connections);
+	
+	for (int i = 0; i < copied_connections.size(); i++) {
+		if (copied_connections[i]->id == target_id) return copied_connections[i];
+	}
+
+	return nullptr;
+}
+
+void Node::createGame(int game) {
+	shared_ptr<ChessInvite> game_invite;
+	if (outgoing_invite->game == game) game_invite = outgoing_invite;
+	else {
+		for (int i = 0; i < outgoing_invites_history.size(); i++) {
+			if (outgoing_invites_history[i]->game == game) {
+				game_invite = outgoing_invites_history[i];
+				break;
+			}
+		}
+	}
+
+	if (!game_invite) return;
+	
+	outgoing_invite.reset();
+	outgoing_invites_history.clear();
+	
+	while (!checkConnectedToNode(game_invite->to)) {
+		if (!connecting) {
+			lock_guard<mutex> lock(punchholeRC_mutex);
+			connecting = true;
+			cout << to_string(id) << " -> " << to_string(game_invite->to) << endl;
+			if (connectToPunchholeRoot()) {
+				connecting_id = game_invite->to;
+
+				string message = "rpnp\npunchhole request " + to_string(id) + " " + to_string(game_invite->to);
+				punchholeRC->writeData(message);
+			}
+			else if (!punchholeRC) {
+				connecting = false;
+			}
+		}
+
+		this_thread::sleep_for(chrono::milliseconds(HANDLE_FREQUENCY));
+	}
+
+	chess_connection = getConnectionToNode(game_invite->to);
+	chess_connection->chess_connection = true;
+
+	int me = game_invite->game % 2 ^ (game_invite->from > game_invite->to);
+
+	string message = "pnp\nchess start " + to_string(game_invite->game);
+	chess_connection->writeData(message);
+
+	chess_connection->board = make_shared<Board>(chess_connection, me);
+}
 
 RelaySession::RelaySession(int to, int from, int session) : to(to), from(from), session(session) {
 	creation = chrono::high_resolution_clock::now();
 }
+
+ChessInvite::ChessInvite(int to, int from, int game) : to(to), from(from), game(game) {}

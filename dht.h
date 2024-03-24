@@ -27,6 +27,8 @@ struct DHT {
 	bool deleteConnection(shared_ptr<DHTConnection> connection);
 	shared_ptr<DHTNode> getNodeFromId(int id);
 	int getFreeId();
+	bool checkNameFree(string name);
+	bool renameNode(int id, string name);
 	void calculateLevels();
 	void copyConnections(vector<shared_ptr<DHTConnection>>& copy);
 	void copyNodes(vector<shared_ptr<DHTNode>>& copy);
@@ -41,8 +43,8 @@ struct DHT {
 version
 -
 nodes
-id	level	ip
-0	0		1.2.3.4
+id	level	ip			name
+0	0		1.2.3.4		username
 -
 connections
 id	id
@@ -56,12 +58,14 @@ struct DHTNode {
 	int id;
 	int level;
 	string ip;
+	string name;
 	vector<shared_ptr<DHTConnection>> connections;
 	bool disconnected = false;
 	time_point disconnect_time;
 
 	DHTNode();
 	DHTNode(int id, int level, string ip);
+	DHTNode(int id, int level, string ip, string name);
 	bool operator ==(DHTNode const& node);
 };
 
