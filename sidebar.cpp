@@ -54,37 +54,41 @@ void Timer::createSprite() {
 void Timer::start() {
     start_time = chrono::high_resolution_clock::now();
     running = true;
+    stopped = false;
     if (player == me) board->appendCPNP("timer start " + to_string((int)time) + " " + to_string(board->game_tick));
 }
 
 void Timer::stop() {
+    if (stopped) return;
+    stopped = true;
+
     update();
     running = false;
     if (player == me) board->appendCPNP("timer stop " + to_string((int)time) + " " + to_string(board->game_tick));
 }
 
 void Timer::update() {
-    if (running) {
-        time += chrono::duration<double>(chrono::high_resolution_clock::now() - start_time).count();
-        start_time = chrono::high_resolution_clock::now();
+    if (!running) return;
 
-        seconds = initial_time - round(time);
-        updateText();
+    time += chrono::duration<double>(chrono::high_resolution_clock::now() - start_time).count();
+    start_time = chrono::high_resolution_clock::now();
 
-        if (seconds == 0) {
-            if (player == me) {
-                board->endGame(timeout, player);
-                board->appendCPNP("timer timeout");
-            }
-            else {
-                running = false;
-            }
+    seconds = initial_time - round(time);
+    updateText();
+
+    if (seconds == 0) {
+        if (player == me) {
+            board->endGame(timeout, player);
+            board->appendCPNP("timer timeout");
         }
-
-        if (player == me && time - last_sent_time >= 3) {
-            board->appendCPNP("timer dynamic " + to_string((int)time) + " " + to_string(board->game_tick));
-            last_sent_time = time;
+        else {
+            running = false;
         }
+    }
+
+    if (player == me && time - last_sent_time >= 3) {
+        board->appendCPNP("timer dynamic " + to_string((int)time) + " " + to_string(board->game_tick));
+        last_sent_time = time;
     }
 }
 

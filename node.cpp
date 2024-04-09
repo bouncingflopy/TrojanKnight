@@ -36,13 +36,16 @@ static int generateRandom(int low, int high) {
 Node::Node() {
 	dht = DHT();
 
-	ip = getIP();
-	string root = getDDNS();
+	//ip = getIP();
+	//string root = getDDNS();
 	
-	/*cout << "IP: " << ip << endl;
+	ip = "127.0.0.1"; // lan
+	string root = "127.0.0.1";
+
+	cout << "IP: " << ip << endl;
 	cout << "Root: " << root << endl;
 
-	if (ip == root) {
+	if (ip == root && false) { // lan
 		becomeRoot();
 	}
 	else if (!connectToRoot()) {
@@ -52,15 +55,16 @@ Node::Node() {
 
 	if (!is_root) {
 		connect();
-	}*/
-	becomeRoot();
-
+	}
+	
 	handle_thread = thread(&Node::handleThread, this);
 	keepalive_thread = thread(&Node::keepalive, this);
 	lookout_thread = thread(&Node::lookout, this);
 }
 
 string Node::getIP() {
+	return "127.0.0.1"; // lan
+
 	CURL* curl;
 	CURLcode res;
 	string response;
@@ -83,6 +87,8 @@ string Node::getIP() {
 }
 
 string Node::getDDNS() {
+	return "127.0.0.1"; // lan
+
 	CURL* curl;
 	CURLcode res;
 	string response;
@@ -112,6 +118,8 @@ string Node::getDDNS() {
 }
 
 void Node::setDDNS(string ip) {
+	return; // lan
+	
 	CURL* curl;
 	CURLcode res;
 
@@ -774,16 +782,20 @@ void Node::createGame(int game) {
 
 		this_thread::sleep_for(chrono::milliseconds(HANDLE_FREQUENCY));
 	}
-
-	chess_connection = getConnectionToNode(game_invite->to);
-	chess_connection->chess_connection = true;
+	
+	shared_ptr<Connection> connection = getConnectionToNode(game_invite->to);
+	connection->chess_connection = true;
 
 	int me = game_invite->game % 2 ^ (game_invite->from > game_invite->to);
+	string white_player = me ? dht.getNodeFromId(game_invite->from)->name : dht.getNodeFromId(game_invite->to)->name;
+	string black_player = !me ? dht.getNodeFromId(game_invite->from)->name : dht.getNodeFromId(game_invite->to)->name;
 
 	string message = "pnp\nchess start " + to_string(game_invite->game);
-	chess_connection->writeData(message);
+	connection->writeData(message);
 
-	chess_connection->board = make_shared<Board>(chess_connection, me);
+	connection->board = make_shared<Board>(connection, me, white_player, black_player);
+
+	chess_connection = connection;
 }
 
 RelaySession::RelaySession(int to, int from, int session) : to(to), from(from), session(session) {

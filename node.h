@@ -98,6 +98,11 @@ struct ChessInvite {
 
 // wan holepunching
 // wan reroot
+// wan lobby
+// wan chess
+// wan timers
+
+// upnp
 
 // add private ip connection
 // what if node sends root dht update (connect and disconnect) but root is rerooting or doesnt get it?
@@ -105,6 +110,12 @@ struct ChessInvite {
 // add ttl for rootconnection?
 // node joining while reroot
 // check for name change race condition with api call to root
+// lobby cooldown
+// sending lobby request and then they leave or dht order changes (keep selected)
+// dont display players who are in game in the lobby
+// board error when sending packet to disconnected opponent
+// lobby changing dht when focused and red buttoned on a player that moved around in lobby or disconnected (also not red)
+// full lobby trying to open chess connection crash
 
 /*
 
@@ -163,6 +174,7 @@ ack
 // optimize code and run times
 // add comments and documentation
 // patch vulnerabilies and improve security
+// resize window
 
 class RootNode {
 public:

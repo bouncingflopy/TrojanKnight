@@ -6,10 +6,10 @@
 #include "moves.h"
 #include "board.h"
 
-Board::Board(shared_ptr<Connection> c, int m) : connection(c), me(m) {
+Board::Board(shared_ptr<Connection> c, int m, string wp, string bp) : connection(c), me(m) {
     players = new Player * [2];
-    players[0] = new Player(0, "black", me);
-    players[1] = new Player(1, "white", me);
+    players[0] = new Player(0, bp, me);
+    players[1] = new Player(1, wp, me);
 
     tiles = createTiles();
     pieces = createPieces(tiles, players);
@@ -17,8 +17,8 @@ Board::Board(shared_ptr<Connection> c, int m) : connection(c), me(m) {
     start_time = chrono::high_resolution_clock::now();
 
     timers = new Timer*[2];
-    timers[0] = new Timer(this, 80, 0);
-    timers[1] = new Timer(this, 80, 1);
+    timers[0] = new Timer(this, 10, 0);
+    timers[1] = new Timer(this, 10, 1);
 
     timers[1]->start();
 
@@ -77,6 +77,7 @@ void Board::draw(sf::RenderWindow& window) {
     }
 
     if (!enabled) {
+        lock_guard<mutex> lock(end_screen_mutex);
         window.draw(end_screen->rect);
         for (int i = 0; i < 3; i++) {
             window.draw(end_screen->text[i]);
@@ -420,7 +421,9 @@ void Board::exitGame() {
     enabled = false;
     timers[turn]->stop();
 
+    unique_lock<mutex> lock(end_screen_mutex);
     end_screen = new EndScreen(this, game_result, winner);
+    lock.unlock();
 
     connection->releaseChess();
 }
@@ -540,7 +543,7 @@ void Board::addLogs() {
     boardHistory.push_back(boardFEN());
 }
 
-void Board::makeMove(Move* move) {
+void Board::makeMove(Move* move, bool report) {
     if (move->eat) {
         move->eat->tile->piece = NULL;
         killPiece(move->eat);
@@ -566,7 +569,7 @@ void Board::makeMove(Move* move) {
     moveHistory.push_back(move);
     move->highlight();
 
-    appendCPNP(moveToCPNP(move));
+    if (report) appendCPNP(moveToCPNP(move));
 
     changeTurn();
 }
@@ -647,7 +650,7 @@ void Board::handlePress(int x, int y) {
     }
 
     if (x <= TILESIZE * 8 && y <= TILESIZE * 8) {
-        if (turn == turn) { // turn == me
+        if (turn == me) {
             Tile* pressed = getTileAtPosition(x, y, me == 0);
 
             if (waiting_promotion) {
@@ -655,10 +658,10 @@ void Board::handlePress(int x, int y) {
                 waiting_promotion = false;
 
                 if (pressed->promotion_tile) {
-                    makeMove(((Pawn*)promotion_piece)->getMove(promotion_destination, ((PromotionTile*)pressed)->piece_type));
+                    makeMove(((Pawn*)promotion_piece)->getMove(promotion_destination, ((PromotionTile*)pressed)->piece_type), true);
                 }
             }
-            else if (!selected_tile) {
+            else if (selected_tile == NULL) {
                 if (pressed->piece && pressed->piece->owner == players[turn]) {
                     selectTile(pressed);
                 }
@@ -676,7 +679,7 @@ void Board::handlePress(int x, int y) {
                     deselectTile(selected_tile);
 
                     if (!move->promotion) {
-                        makeMove(move);
+                        makeMove(move, true);
                     }
                     else {
                         displayPromotion(move);

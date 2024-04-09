@@ -32,7 +32,7 @@ public:
     Player** players;
     int turn;
     int me;
-    Tile* selected_tile;
+    Tile* selected_tile = NULL;
     vector<Piece*> deadPieces;
     vector<Move*>** move_cache;
     bool enabled = true;
@@ -54,8 +54,9 @@ public:
     int game_tick = 0;
     int last_reported_game_tick = 0;
     shared_ptr<Connection> connection;
+    mutex end_screen_mutex;
 
-    Board(shared_ptr<Connection> c, int m);
+    Board(shared_ptr<Connection> c, int m, string wp, string bp);
     void updateClocks();
     void draw(sf::RenderWindow& window);
     Tile*** createTiles();
@@ -77,7 +78,7 @@ public:
     void revivePiece(Piece* piece);
     string boardFEN();
     void addLogs();
-    void makeMove(Move* move);
+    void makeMove(Move* move, bool report);
     //void undoMove();
     void selectTile(Tile* tile);
     void deselectTile(Tile* tile);

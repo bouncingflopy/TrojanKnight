@@ -91,11 +91,11 @@ void Lobby::update() {
 	if (!(node->dht == dht)) {
 		dht = node->dht;
 		
-		/*// debug
-		lobby_players.clear();
-		for (int i = 0; i < 256; i++) {
-			lobby_players.push_back(new LobbyPlayer(i, generateRandomString(MAX_NAME_LENGTH)));
-		}*/
+		//// debug
+		//lobby_players.clear();
+		//for (int i = 0; i < 256; i++) {
+		//	lobby_players.push_back(new LobbyPlayer(i, generateRandomString(MAX_NAME_LENGTH)));
+		//}
 
 		lobby_players.clear();
 		
@@ -103,9 +103,10 @@ void Lobby::update() {
 		dht.copyNodes(copied_dht_nodes);
 
 		for (shared_ptr<DHTNode>& dht_node : copied_dht_nodes) {
-			if (dht_node->level > -1) {
-				lobby_players.push_back(new LobbyPlayer(dht_node->id, dht_node->name));
-			}
+			if (dht_node->level == -1) continue;
+			if (dht_node->id == node->id) continue;
+
+			lobby_players.push_back(new LobbyPlayer(dht_node->id, dht_node->name));
 		}
 
 		applyFilter(filter);

@@ -8,7 +8,10 @@
 #include "sidebar.h"
 
 void Board::appendCPNP(string data) {
-	if (!message_waiting) message_waiting = true;
+	if (!message_waiting) {
+		message_waiting = true;
+		message = "cpnp";
+	}
 	message += "\n" + data;
 }
 
@@ -56,7 +59,7 @@ void Board::decodeCPNP(string message) {
 		string temp;
 		while (getline(stream, temp, ' ')) words.push_back(temp);
 
-		if (words[0] == "cpnp") {
+		if (words[0] == "cpnp") { // needed?
 			continue;
 		}
 
@@ -82,7 +85,7 @@ void Board::decodeCPNP(string message) {
 			}
 			
 			if (move) {
-				makeMove(move);
+				makeMove(move, false);
 			}
 			else {
 				appendCPNP("error move");
@@ -141,7 +144,7 @@ void Board::decodeCPNP(string message) {
 					endGame(error_timer);
 				}
 			}
-			else if (words[2] == "timeout") {
+			else if (words[1] == "timeout") {
 				endGame(timeout, 1 - me);
 			}
 		}

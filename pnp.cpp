@@ -235,9 +235,14 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 				if (outgoing_invite->game == stoi(words[2])) outgoing_invite.reset();
 			}
 			else if (words[1] == "start") {
+				connection->chess_connection = true;
+				int me = stoi(words[2]) % 2 ^ (id > connection->id);
+				string white_player = !me ? dht.getNodeFromId(connection->id)->name : dht.getNodeFromId(id)->name;
+				string black_player = me ? dht.getNodeFromId(connection->id)->name : dht.getNodeFromId(id)->name;
+
+				connection->board = make_shared<Board>(connection, me, white_player, black_player);
+				
 				chess_connection = connection;
-				int me = stoi(words[2]) % 2 ^ (connection->id > id);
-				chess_connection->board = make_shared<Board>(chess_connection, me);
 			}
 		}
 	}
@@ -269,6 +274,7 @@ void RootNode::handleMessage(Message message) {
 				node->id = dht.getFreeId();
 				node->level = -1;
 				node->ip = message.endpoint.address().to_string();
+				node->name = to_string(node->id);
 
 				if (dht.addNode(node)) changedDHT();
 

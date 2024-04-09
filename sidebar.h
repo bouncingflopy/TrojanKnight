@@ -28,6 +28,7 @@ public:
     double time = 0;
     chrono::time_point<chrono::high_resolution_clock> start_time;
     bool running = false;
+    bool stopped = false;
     int initial_time;
     int seconds;
     int display_seconds;
