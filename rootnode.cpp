@@ -38,6 +38,8 @@ void RootNode::createDHT() {
 	if (dht.addNode(dhtNode)) changedDHT();
 
 	node->id = 0;
+
+	node->createKeys();
 }
 
 void RootNode::overtakeDHT() {

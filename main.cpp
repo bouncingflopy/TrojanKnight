@@ -4,6 +4,7 @@
 #include "node.h"
 #include "board.h"
 #include "lobby.h"
+#include "launcher.h"
 #include "dhtdisplay.h" // only for displaying dht
 
 void resize(sf::RenderWindow& window) {
@@ -105,7 +106,7 @@ int main() {
 	Node* node = new Node();
 
 	thread dht_display_thread([node]() {
-		dhtDisplay(node->dht);
+		if (node->is_root) dhtDisplay(node->dht); // lan
 		});
 	dht_display_thread.detach();
 
@@ -135,3 +136,16 @@ int main() {
 
 	return 0;
 }
+
+//int main() {
+//	if (!Launcher::checkPrivileges()) { // not needed?
+//		cout << "must run in admin mode!" << endl;
+//
+//		cin.get();
+//		return 0;
+//	}
+//
+//	Launcher::main();
+//
+//	return 0;
+//}

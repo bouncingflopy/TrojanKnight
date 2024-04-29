@@ -150,7 +150,7 @@ void Node::setDDNS(string ip) {
 
 void Node::becomeRoot() {
 	is_root = true;
-	root_node =  make_shared<RootNode>(shared_ptr<Node>(this));
+	root_node = make_shared<RootNode>(shared_ptr<Node>(this));
 }
 
 void Node::connect() {
@@ -749,7 +749,7 @@ shared_ptr<Connection> Node::getConnectionToNode(int target_id) {
 
 void Node::createGame(int game) {
 	shared_ptr<ChessInvite> game_invite;
-	if (outgoing_invite->game == game) game_invite = outgoing_invite;
+	if (outgoing_invite && outgoing_invite->game == game) game_invite = outgoing_invite;
 	else {
 		for (int i = 0; i < outgoing_invites_history.size(); i++) {
 			if (outgoing_invites_history[i]->game == game) {
@@ -793,9 +793,23 @@ void Node::createGame(int game) {
 	string message = "pnp\nchess start " + to_string(game_invite->game);
 	connection->writeData(message);
 
+	lock_guard<mutex> lock(board_mutex);
 	connection->board = make_shared<Board>(connection, me, white_player, black_player);
 
 	chess_connection = connection;
+}
+
+void Node::createKeys() {
+	// Generate RSA key pair
+	std::pair<RSA*, RSA*> keys = Encryption::generateRSAKeyPair(2048);
+
+	public_key = shared_ptr<RSA>(keys.first);
+	private_key = shared_ptr<RSA>(keys.second);
+
+	std::string publicKeyPEM = Encryption::exportRSAPublicKey(public_key.get());
+
+	string message = "pnp\nbroadcast\nkey share " + to_string(id) + "\n" + publicKeyPEM;
+	rootConnection->writeData(message);
 }
 
 RelaySession::RelaySession(int to, int from, int session) : to(to), from(from), session(session) {

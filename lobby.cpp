@@ -120,7 +120,7 @@ void Lobby::update() {
 		if (selected_tile) {
 			LobbyTile* copied_selected_tile = selected_tile;
 			deselectTile(selected_tile);
-			selectTile(copied_selected_tile);
+			if (copied_selected_tile->lobby_player) selectTile(copied_selected_tile);
 		}
 	}
 

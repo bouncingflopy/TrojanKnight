@@ -3,10 +3,12 @@
 
 #include <vector>
 #include <string>
+#include <openssl/rsa.h>
 
 #include "connection.h"
 #include "networksettings.h"
 #include "dht.h"
+#include "encryption.h"
 
 class Connection;
 class OpenConnection;
@@ -44,6 +46,9 @@ public:
 	shared_ptr<ChessInvite> outgoing_invite;
 	vector<shared_ptr<ChessInvite>> incoming_invites;
 	vector<shared_ptr<ChessInvite>> outgoing_invites_history;
+	mutex board_mutex;
+	shared_ptr<RSA> public_key;
+	shared_ptr<RSA> private_key;
 
 	Node();
 	string getIP();
@@ -77,6 +82,7 @@ public:
 	bool checkConnectedToNode(int target_id);
 	shared_ptr<Connection> getConnectionToNode(int target_id);
 	void createGame(int game);
+	void createKeys();
 };
 
 struct RelaySession {
@@ -129,6 +135,8 @@ v	dht rename 1 username
 v	punchhole request 0 1
 v	punchhole fail 0 1
 
+	key query 1
+
 */
 
 /*
@@ -154,6 +162,10 @@ v	chess cancel [game] 1
 v	chess accept [game] 1
 v	chess reject [game] 1
 v	chess start [game] 1
+
+	key share 1
+		...
+	key query 1
 
 */
 

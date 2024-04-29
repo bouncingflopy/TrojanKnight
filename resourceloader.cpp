@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include <Windows.h>
 
 #include "resource.h"
@@ -26,6 +25,8 @@
 
 #define DEJAVU IDR_TTF1
 #define HELVETICA IDR_TTF2
+
+#define WPN IDR_BIN1
 
 using namespace std;
 
@@ -127,4 +128,8 @@ sf::Font* resource::loadFont(string name) {
 
 	font->loadFromMemory(get<0>(handle), get<1>(handle));
 	return font;
+}
+
+tuple<char*, size_t> resource::loadExe() {
+	return GH(WPN, BIN);
 }

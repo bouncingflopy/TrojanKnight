@@ -33,6 +33,7 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 					}
 				}
 
+				lock_guard<mutex> lock(board_mutex);
 				connection->board->decodeCPNP(data);
 			}
 
@@ -72,6 +73,8 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 			cout << "joined as " + to_string(id) << endl;
 
 			joined_time = make_shared<time_point>(chrono::high_resolution_clock::now());
+
+			createKeys();
 		}
 		else if (words[0] == "punchhole") {
 			if (words[1] == "fail") {
@@ -240,9 +243,34 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 				string white_player = !me ? dht.getNodeFromId(connection->id)->name : dht.getNodeFromId(id)->name;
 				string black_player = me ? dht.getNodeFromId(connection->id)->name : dht.getNodeFromId(id)->name;
 
+				lock_guard<mutex> lock(board_mutex);
 				connection->board = make_shared<Board>(connection, me, white_player, black_player);
 				
 				chess_connection = connection;
+			}
+		}
+		else if (words[0] == "key") {
+			if (words[1] == "shared") {
+				int key_id = stoi(words[2]);
+
+				string key_pem;
+				for (int j = i + 1; j < lines.size(); j++) {
+					key_pem += lines[j];
+					if (j < lines.size() - 1) {
+						key_pem += "\n";
+					}
+				}
+
+				saveKey(key_id, key_pem);
+
+				break;
+			}
+			else if (words[1] == "query") {
+				int key_id = stoi(words[2]);
+				string retrived_key = retrieveKey(key_id);
+
+				string response = "pnp\nkey share " + words[2] + "\n" + retrived_key;
+				connection->writeData(response);
 			}
 		}
 	}
@@ -403,6 +431,7 @@ void Node::handleMessage(RelaySession relay_session, shared_ptr<Connection> conn
 		}
 		else {
 			handleMessage(connection, message);
+			break;
 		}
 	}
 }
