@@ -12,6 +12,7 @@
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 #include <random>
+#include <fstream>
 
 #include "node.h"
 #include "connection.h"
@@ -409,16 +410,16 @@ void Node::keepalive() {
 		vector<shared_ptr<Connection>> copied_connections;
 		copyConnections(copied_connections);
 		for (shared_ptr<Connection>& connection : copied_connections) {
-			if (connection->connected) connection->writeData(message);
+			if (connection->connected) connection->writeProtocolless(message);
 		}
 
 		if (rootConnection) {
-			rootConnection->writeData(message);
+			rootConnection->writeProtocolless(message);
 		}
 
 		unique_lock<mutex> lock(punchholeRC_mutex);
 		if (punchholeRC) {
-			punchholeRC->writeData(message);
+			punchholeRC->writeProtocolless(message);
 		}
 		lock.unlock();
 
@@ -470,7 +471,7 @@ void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
 	punchholeRC.reset();
 	punchholeRC_lock.unlock();
 
-	connection->change(target_ip, target_port, target_id);
+	connection->change(target_ip, target_port, target_id, private_key);
 	
 	if (connection->connected) {
 		unique_lock<mutex> connections_lock(connections_mutex);
@@ -479,6 +480,9 @@ void Node::punchholeConnect(string target_ip, int target_port, int target_id) {
 
 		shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
 		dht.addConnection(dht_connection);
+
+		connection->encryption_key = retrieveKey(target_id);
+		connection->decryption_key = private_key;
 
 		string message = "rpnp\ndht connect " + to_string(id) + " " + to_string(target_id);
 		relay(dht.nodes[0]->id, message);
@@ -502,7 +506,7 @@ void Node::simulatedPunchholeConnect(string target_ip, int target_port, int targ
 	punchholeRC.reset();
 	punchholeRC_lock.unlock();
 
-	shared_ptr<Connection> connection = make_shared<Connection>(target_ip, target_port, target_id);
+	shared_ptr<Connection> connection = make_shared<Connection>(target_ip, target_port, target_id, private_key);
 
 	if (connection->connected) {
 		unique_lock<mutex> connections_lock(connections_mutex);
@@ -511,6 +515,9 @@ void Node::simulatedPunchholeConnect(string target_ip, int target_port, int targ
 
 		shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(id), dht.getNodeFromId(target_id));
 		dht.addConnection(dht_connection);
+
+		connection->encryption_key = retrieveKey(target_id);
+		connection->decryption_key = private_key;
 
 		string message = "rpnp\ndht connect " + to_string(id) + " " + to_string(target_id);
 		relay(dht.nodes[0]->id, message);
@@ -607,20 +614,24 @@ void Node::relay(int target_id, string payload) {
 	
 	if (path.size() <= 1) return;
 
-	string message;
-	int current = id;
+	string message = payload;
 	int session = generateRandom(0, 999999);
-
-	for (int i = 2; i < path.size(); i++) {
-		message += "pnp\nrelay request " + to_string(path[i]) + " " + to_string(current) + " " + to_string(session) + "\n";
-		current = path[i - 1];
-	}
+	string key;
 
 	if (path.size() > 2) {
-		message += "pnp\nrelay request " + to_string(path[path.size() - 1]) + " " + to_string(path[path.size() - 2]) + " " + to_string(session) + "\n";
-	}
+		pair<string, string> message_key_pair = Encryption::encryptVerbose(message, retrieveKey(path[path.size() - 1]));
+		message = message_key_pair.first;
+		key = message_key_pair.second;
+		
+		message = "pnp\nrelay request " + to_string(path[path.size() - 1]) + " " + to_string(path[path.size() - 2]) + " " + to_string(session) + "\n" + message;
 
-	message += payload;
+		for (int i = path.size() - 1; i > 1; i--) {
+			message = Encryption::encrypt(message, retrieveKey(path[i]));
+			message = "epnpr\n" + message + "\nepnpr";
+
+			message = "pnp\nrelay request " + to_string(path[i]) + " " + to_string(path[i - 2]) + " " + to_string(session) + "\n" + message;
+		}
+	}
 
 	unique_lock<mutex> lock(connections_mutex);
 	for (shared_ptr<Connection>& connection : connections) {
@@ -633,7 +644,7 @@ void Node::relay(int target_id, string payload) {
 	lock.unlock();
 
 	if (path.size() > 2) {
-		RelaySession relay_session = RelaySession(target_id, id, session);
+		RelaySession relay_session = RelaySession(target_id, id, session, key);
 		relay_sessions.push_back(relay_session);
 	}
 }
@@ -685,9 +696,13 @@ void Node::copyConnections(vector<shared_ptr<Connection>>& copy) {
 	}
 }
 
-void Node::changeName(string name) {
-	string message = "rpnp\ndht rename " + to_string(id) + " " + name;
+void Node::changeName(string new_name) {
+	string message = "rpnp\ndht rename " + to_string(id) + " " + new_name;
 	relay(dht.nodes[0]->id, message);
+
+	name = new_name;
+
+	Storage::setName(new_name);
 }
 
 void Node::sendInvite(int target_id) {
@@ -800,20 +815,53 @@ void Node::createGame(int game) {
 }
 
 void Node::createKeys() {
-	// Generate RSA key pair
-	std::pair<RSA*, RSA*> keys = Encryption::generateRSAKeyPair(2048);
+	pair<shared_ptr<RSA>, shared_ptr<RSA>> keys = Encryption::generateRSAKeyPair();
 
-	public_key = shared_ptr<RSA>(keys.first);
-	private_key = shared_ptr<RSA>(keys.second);
+	public_key = keys.first;
+	private_key = keys.second;
 
-	std::string publicKeyPEM = Encryption::exportRSAPublicKey(public_key.get());
+	string key_pem = Encryption::exportRSAPublicKey(public_key);
 
-	string message = "pnp\nbroadcast\nkey share " + to_string(id) + "\n" + publicKeyPEM;
-	rootConnection->writeData(message);
+	if (!is_root) {
+		string message = "rpnp\nbroadcast\nkey share " + to_string(id) + "\n" + key_pem;
+		rootConnection->writeData(message);
+	}
+}
+
+shared_ptr<RSA> Node::retrieveKey(int key_id) {
+	if (key_id == id) return public_key;
+
+	string key_pem = Storage::getKey(key_id);
+	if (!key_pem.empty()) return Encryption::importRSAPublicKey(key_pem);
+
+	shared_ptr<Connection> lowest_level = connections[0];
+	for (shared_ptr<Connection>& connection : connections) {
+		if (dht.getNodeFromId(connection->id)->level < dht.getNodeFromId(lowest_level->id)->level) lowest_level = connection;
+	}
+
+	string message = "pnp\nkey query " + to_string(key_id);
+	lowest_level->writeData(message);
+
+	int i = 0;
+	while (i < 100) {
+		this_thread::sleep_for(chrono::seconds(KEY_RETRIEVE_CHECK_FREQUENCY));
+
+		key_pem = Storage::getKey(key_id);
+		if (!key_pem.empty()) return Encryption::importRSAPublicKey(key_pem);
+
+		i++;
+	}
+
+	return nullptr;
 }
 
 RelaySession::RelaySession(int to, int from, int session) : to(to), from(from), session(session) {
 	creation = chrono::high_resolution_clock::now();
+}
+
+RelaySession::RelaySession(int to, int from, int session, string k) : RelaySession(to, from, session) {
+	creation = chrono::high_resolution_clock::now();
+	key = k;
 }
 
 ChessInvite::ChessInvite(int to, int from, int game) : to(to), from(from), game(game) {}

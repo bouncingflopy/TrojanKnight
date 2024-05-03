@@ -12,6 +12,13 @@ RootNode::RootNode(shared_ptr<Node> n) : node(n) {
 	if (node->dht.version == 0) createDHT();
 	else overtakeDHT();
 
+	node->name = to_string(dht.nodes[0]->id);
+	string saved_name = Storage::getName();
+	if (!saved_name.empty()) {
+		dht.nodes[0]->name = saved_name;
+		node->name = saved_name;
+	}
+
 	detached_thread = thread(&RootNode::detachedCheck, this);
 
 	cout << "i am (g)root" << endl;
@@ -119,7 +126,7 @@ void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint,
 	string message = "pnp\npunchhole info " + to_string(node->id) + " " + dht.nodes[0]->ip + " " + to_string(port);
 	admin->writeData(target_endpoint, message);
 
-	shared_ptr<Connection> connection = make_shared<RootConnection>(target_endpoint.address().to_string(), target_endpoint.port(), target_id, port);
+	shared_ptr<Connection> connection = make_shared<RootConnection>(target_endpoint.address().to_string(), target_endpoint.port(), target_id, port, node->private_key);
 	
 	if (connection->connected) {
 		unique_lock<mutex> lock(node->connections_mutex);
@@ -128,6 +135,9 @@ void RootNode::simulateHolepunchConnect(asio::ip::udp::endpoint target_endpoint,
 
 		shared_ptr<DHTConnection> dht_connection = make_shared<DHTConnection>(dht.getNodeFromId(node->id), dht.getNodeFromId(target_id));
 		if (dht.addConnection(dht_connection)) changedDHT();
+
+		connection->encryption_key = node->retrieveKey(target_id);
+		connection->decryption_key = node->private_key;
 
 		cout << to_string(node->id) << " == " + to_string(target_id) << endl;
 	}

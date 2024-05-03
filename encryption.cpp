@@ -1,39 +1,66 @@
 ﻿#pragma warning(disable : 4996)
 
-#include <iostream>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/aes.h>
+#include <openssl/rand.h>
 #include <string>
+#include <iostream>
+#include <vector>
 
 #include "encryption.h"
 
-// Function to generate RSA key pair and return public and private keys
-std::pair<RSA*, RSA*> Encryption::generateRSAKeyPair(int keyLength) {
+struct RSADeleter {
+    void operator() (RSA* rsa) const {
+        RSA_free(rsa);
+    }
+};
+
+pair<shared_ptr<RSA>, shared_ptr<RSA>> Encryption::generateRSAKeyPair() {
     RSA* rsa = RSA_new();
     BIGNUM* bn = BN_new();
     BN_set_word(bn, RSA_F4);
-    RSA_generate_key_ex(rsa, keyLength, bn, NULL);
+    RSA_generate_key_ex(rsa, RSA_KEY_SIZE, bn, NULL);
 
-    RSA* publicKey = RSAPublicKey_dup(rsa);
-    RSA* privateKey = RSAPrivateKey_dup(rsa);
+    shared_ptr<RSA> publicKey(RSAPublicKey_dup(rsa), RSADeleter{});
+    shared_ptr<RSA> privateKey(RSAPrivateKey_dup(rsa), RSADeleter{});
 
     RSA_free(rsa);
     BN_free(bn);
 
-    return std::make_pair(publicKey, privateKey);
+    return make_pair(publicKey, privateKey);
 }
 
-// Function to encrypt data using RSA public key
-std::string Encryption::encryptRSA(const std::string& plaintext, RSA* publicKey) {
-    int max_length = RSA_size(publicKey);
-    std::string ciphertext(max_length, '\0');
+string Encryption::exportRSAPublicKey(shared_ptr<RSA> key) {
+    BIO* bio = BIO_new(BIO_s_mem());
+    PEM_write_bio_RSA_PUBKEY(bio, key.get());
+    char* pemKey;
+    size_t pemKeyLen = BIO_get_mem_data(bio, &pemKey);
+    string publicKey(pemKey, pemKeyLen);
+    BIO_free(bio);
+    return publicKey;
+}
 
-    int encrypted_length = RSA_public_encrypt(plaintext.size(), reinterpret_cast<const unsigned char*>(plaintext.c_str()),
-        reinterpret_cast<unsigned char*>(&ciphertext[0]), publicKey, RSA_PKCS1_PADDING);
+shared_ptr<RSA> Encryption::importRSAPublicKey(string& pem) {
+    RSA* rsa = nullptr;
+    BIO* bio = BIO_new_mem_buf(pem.c_str(), -1);
+    if (bio) {
+        rsa = PEM_read_bio_RSA_PUBKEY(bio, &rsa, NULL, NULL);
+        BIO_free(bio);
+    }
+    return shared_ptr<RSA>(rsa, RSADeleter{});
+}
+
+string Encryption::encryptRSA(string& data, shared_ptr<RSA> key) {
+    int max_length = RSA_size(key.get());
+    string ciphertext(max_length, '\0');
+
+    int encrypted_length = RSA_public_encrypt(data.size(), reinterpret_cast<const unsigned char*>(data.c_str()),
+        reinterpret_cast<unsigned char*>(&ciphertext[0]), key.get(), RSA_PKCS1_PADDING);
     if (encrypted_length == -1) {
         // Error handling
-        std::cerr << "Encryption failed" << std::endl;
+        cerr << "Encryption failed" << endl;
         ERR_print_errors_fp(stderr);
         return "";
     }
@@ -41,16 +68,15 @@ std::string Encryption::encryptRSA(const std::string& plaintext, RSA* publicKey)
     return ciphertext.substr(0, encrypted_length);
 }
 
-// Function to decrypt data using RSA private key
-std::string Encryption::decryptRSA(const std::string& ciphertext, RSA* privateKey) {
-    int max_length = RSA_size(privateKey);
-    std::string plaintext(max_length, '\0');
+string Encryption::decryptRSA(string& data, shared_ptr<RSA> key) {
+    int max_length = RSA_size(key.get());
+    string plaintext(max_length, '\0');
 
-    int decrypted_length = RSA_private_decrypt(ciphertext.size(), reinterpret_cast<const unsigned char*>(ciphertext.c_str()),
-        reinterpret_cast<unsigned char*>(&plaintext[0]), privateKey, RSA_PKCS1_PADDING);
+    int decrypted_length = RSA_private_decrypt(data.size(), reinterpret_cast<const unsigned char*>(data.c_str()),
+        reinterpret_cast<unsigned char*>(&plaintext[0]), key.get(), RSA_PKCS1_PADDING);
     if (decrypted_length == -1) {
         // Error handling
-        std::cerr << "Decryption failed" << std::endl;
+        cerr << "Decryption failed" << endl;
         ERR_print_errors_fp(stderr);
         return "";
     }
@@ -58,59 +84,141 @@ std::string Encryption::decryptRSA(const std::string& ciphertext, RSA* privateKe
     return plaintext.substr(0, decrypted_length);
 }
 
-// Function to export RSA public key to PEM format
-std::string Encryption::exportRSAPublicKey(RSA* rsaKey) {
-    BIO* bio = BIO_new(BIO_s_mem());
-    PEM_write_bio_RSA_PUBKEY(bio, rsaKey);
-    char* pemKey;
-    size_t pemKeyLen = BIO_get_mem_data(bio, &pemKey);
-    std::string publicKey(pemKey, pemKeyLen);
-    BIO_free(bio);
-    return publicKey;
-}
-
-// Function to import RSA public key from PEM format
-RSA* Encryption::importRSAPublicKey(const std::string& publicKeyPEM) {
-    RSA* rsa = nullptr;
-    BIO* bio = BIO_new_mem_buf(publicKeyPEM.c_str(), -1);
-    if (bio) {
-        rsa = PEM_read_bio_RSA_PUBKEY(bio, &rsa, NULL, NULL);
-        BIO_free(bio);
+string Encryption::generateAESKey() {
+    const int aes_key_size = AES_KEY_SIZE / 8;
+    unsigned char key[aes_key_size];
+    if (RAND_bytes(key, aes_key_size) != 1) {
+        // Error handling
+        cerr << "Error generating AES key" << endl;
+        ERR_print_errors_fp(stderr);
+        return "";
     }
-    return rsa;
+    return string(reinterpret_cast<char*>(key), aes_key_size);
 }
 
-void Encryption::main() {
-    // Generate RSA key pair
-    std::pair<RSA*, RSA*> keys = generateRSAKeyPair(2048);
+string Encryption::encryptAES(string& data, string key) {
+    AES_KEY aes_key;
+    if (AES_set_encrypt_key(reinterpret_cast<const unsigned char*>(key.c_str()), key.size() * 8, &aes_key) != 0) {
+        cerr << "Error setting AES encryption key" << endl;
+        ERR_print_errors_fp(stderr);
+        return "";
+    }
 
-    RSA* publicKey = keys.first;
-    RSA* privateKey = keys.second;
+    // Create a copy of the input data
+    string paddedData = data;
 
-    // Example plaintext
-    std::string plaintext = "Hello, world!";
+    // Calculate padding size
+    int paddingSize = AES_BLOCK_SIZE - (data.size() % AES_BLOCK_SIZE);
+    if (paddingSize == 0)
+        paddingSize = AES_BLOCK_SIZE;
 
-    // Export public key
-    std::string publicKeyPEM = exportRSAPublicKey(publicKey);
+    // Append padding
+    paddedData.append(paddingSize, static_cast<char>(paddingSize));
 
-    std::cout << "Exported public key: " << publicKeyPEM << std::endl;
+    unsigned char counter[AES_BLOCK_SIZE];
+    memset(counter, 0, AES_BLOCK_SIZE);
 
-    // Import public key from PEM format
-    RSA* importedPublicKey = importRSAPublicKey(publicKeyPEM);
+    vector<unsigned char> ciphertext;
 
-    // Encrypt plaintext using RSA public key
-    std::string encryptedMessage = encryptRSA(plaintext, importedPublicKey);
+    for (size_t i = 0; i < paddedData.size(); i += AES_BLOCK_SIZE) {
+        unsigned char encrypted_block[AES_BLOCK_SIZE];
+        AES_encrypt(counter, encrypted_block, &aes_key);
 
-    // Verify the signature using imported public key
-    std::string decryptedText = decryptRSA(encryptedMessage, privateKey);
+        // XOR the encrypted counter block with the plaintext block
+        for (size_t j = 0; j < AES_BLOCK_SIZE && i + j < paddedData.size(); ++j) {
+            encrypted_block[j] ^= paddedData[i + j];
+        }
 
-    // Output results
-    std::cout << "Original text: " << plaintext << std::endl;
-    std::cout << "Encrypted message: " << encryptedMessage << std::endl;
-    std::cout << "Decrypted text: " << decryptedText << std::endl;
+        // Append the encrypted block to the ciphertext
+        ciphertext.insert(ciphertext.end(), encrypted_block, encrypted_block + AES_BLOCK_SIZE);
 
-    // Clean up resources
-    RSA_free(publicKey);
-    RSA_free(privateKey);
-    RSA_free(importedPublicKey);
+        // Increment the counter
+        for (int j = AES_BLOCK_SIZE - 1; j >= 0; --j) {
+            if (++counter[j]) {
+                break;
+            }
+        }
+    }
+
+    string encryptedData;
+    encryptedData.assign(reinterpret_cast<char*>(ciphertext.data()), ciphertext.size());
+    return encryptedData;
+}
+
+string Encryption::decryptAES(string& data, string key) {
+    AES_KEY aes_key;
+    if (AES_set_encrypt_key(reinterpret_cast<const unsigned char*>(key.c_str()), key.size() * 8, &aes_key) != 0) {
+        cerr << "Error setting AES decryption key" << endl;
+        ERR_print_errors_fp(stderr);
+        return "";
+    }
+
+    string decryptedData;
+
+    unsigned char counter[AES_BLOCK_SIZE];
+    memset(counter, 0, AES_BLOCK_SIZE);
+
+    vector<unsigned char> plaintext;
+
+    for (size_t i = 0; i < data.size(); i += AES_BLOCK_SIZE) {
+        unsigned char encrypted_block[AES_BLOCK_SIZE];
+        AES_encrypt(counter, encrypted_block, &aes_key);
+
+        // XOR the encrypted counter block with the ciphertext block
+        for (size_t j = 0; j < AES_BLOCK_SIZE && i + j < data.size(); ++j) {
+            encrypted_block[j] ^= data[i + j];
+        }
+
+        // Append the decrypted block to the plaintext
+        plaintext.insert(plaintext.end(), encrypted_block, encrypted_block + AES_BLOCK_SIZE);
+
+        // Increment the counter
+        for (int j = AES_BLOCK_SIZE - 1; j >= 0; --j) {
+            if (++counter[j]) {
+                break;
+            }
+        }
+    }
+
+    // Remove padding
+    size_t paddingSize = plaintext.back();
+    decryptedData.assign(reinterpret_cast<char*>(plaintext.data()), plaintext.size() - paddingSize);
+
+    return decryptedData;
+}
+
+string Encryption::encrypt(string& data, shared_ptr<RSA> key) {
+    string aes = generateAESKey();
+    string encrypted_aes = encryptRSA(aes, key);
+    string encrypted_data = encryptAES(data, aes);
+
+    return encrypted_aes + encrypted_data;
+}
+
+string Encryption::decrypt(string& data, shared_ptr<RSA> key) {
+    string encrypted_aes = data.substr(0, RSA_KEY_SIZE / 8);
+    string aes = decryptRSA(encrypted_aes, key);
+
+    string encrypted_data = data.substr(RSA_KEY_SIZE / 8);
+    string decrypted_data = decryptAES(encrypted_data, aes);
+
+    return decrypted_data;
+}
+
+pair<string, string> Encryption::encryptVerbose(string& data, shared_ptr<RSA> key) {
+    string aes = generateAESKey();
+    string encrypted_aes = encryptRSA(aes, key);
+    string encrypted_data = encryptAES(data, aes);
+
+    return make_pair(encrypted_aes + encrypted_data, aes);
+}
+
+pair<string, string> Encryption::decryptVerbose(string& data, shared_ptr<RSA> key) {
+    string encrypted_aes = data.substr(0, RSA_KEY_SIZE / 8);
+    string aes = decryptRSA(encrypted_aes, key);
+
+    string encrypted_data = data.substr(RSA_KEY_SIZE / 8);
+    string decrypted_data = decryptAES(encrypted_data, aes);
+
+    return make_pair(decrypted_data, aes);
 }

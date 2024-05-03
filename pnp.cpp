@@ -62,6 +62,19 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 				reroot_thread = make_shared<thread>(&Node::rerootCheck, this);
 			}
 
+			if (!used_saved_name) {
+				used_saved_name = true;
+
+				string saved_name = Storage::getName();
+				if (!saved_name.empty()) {
+					if (dht.checkNameFree(saved_name)) {
+						string message = "rpnp\ndht rename " + to_string(id) + " " + saved_name;
+						rootConnection->writeData(message);
+						name = saved_name;
+					}
+				}
+			}
+
 			rootConnection.reset();
 
 			manageConnections();
@@ -71,6 +84,8 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 		else if (words[0] == "joined") {
 			id = stoi(words[1]);
 			cout << "joined as " + to_string(id) << endl;
+
+			name = words[1];
 
 			joined_time = make_shared<time_point>(chrono::high_resolution_clock::now());
 
@@ -158,6 +173,10 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 				}
 
 				if (relay_session.to == id) {
+					pair<string, string> message_key_pair = Encryption::decryptVerbose(relay_message, private_key);
+					relay_message = message_key_pair.first;
+					relay_session.key = message_key_pair.second;
+
 					handleMessage(relay_session, connection, relay_message);
 					break;
 				}
@@ -165,7 +184,7 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 				unique_lock<mutex> lock(connections_mutex);
 				for (shared_ptr<Connection>& my_connection : connections) {
 					if (my_connection->id == relay_session.to) {
-						my_connection->writeData(relay_message);
+						my_connection->writePlain(relay_message);
 						break;
 					}
 				}
@@ -192,7 +211,8 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 						relay_sessions.erase(relay_sessions.begin() + r);
 
 						if (relay_session.from == id) {
-							handleMessage(connection, relay_message);
+							string decrypted_message = Encryption::decryptAES(relay_message, relay_session.key);
+							handleMessage(connection, decrypted_message);
 						}
 						else {
 							string response = "pnp\nrelay response " + to_string(session) + "\n" + relay_message;
@@ -250,7 +270,7 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 			}
 		}
 		else if (words[0] == "key") {
-			if (words[1] == "shared") {
+			if (words[1] == "share") {
 				int key_id = stoi(words[2]);
 
 				string key_pem;
@@ -261,16 +281,16 @@ void Node::handleMessage(shared_ptr<Connection> connection, string message) {
 					}
 				}
 
-				saveKey(key_id, key_pem);
+				Storage::setKey(key_id, key_pem);
 
 				break;
 			}
 			else if (words[1] == "query") {
 				int key_id = stoi(words[2]);
-				string retrived_key = retrieveKey(key_id);
+				string retrived_key = Encryption::exportRSAPublicKey(retrieveKey(key_id));
 
 				string response = "pnp\nkey share " + words[2] + "\n" + retrived_key;
-				connection->writeData(response);
+				connection->writePlain(response);
 			}
 		}
 	}
@@ -282,9 +302,9 @@ void RootNode::handleMessage(Message message) {
 	string temp;
 	while (getline(stream, temp, '\n')) lines.push_back(temp);
 
-	for (string line : lines) {
+	for (int i = 0; i < lines.size(); i++) {
 		vector<string> words;
-		istringstream stream(line);
+		istringstream stream(lines[i]);
 		string temp;
 		while (getline(stream, temp, ' ')) words.push_back(temp);
 
@@ -346,6 +366,9 @@ void RootNode::handleMessage(Message message) {
 			else if (words[1] == "leave") {
 				if (dht.deleteNode(stoi(words[2]))) changedDHT();
 			}
+			else if (words[1] == "rename") {
+				if (dht.renameNode(stoi(words[2]), words[3])) changedDHT();
+			}
 		}
 		else if (words[0] == "punchhole") {
 			if (words[1] == "fail") {
@@ -404,6 +427,20 @@ void RootNode::handleMessage(Message message) {
 					}
 				}
 			}
+		}
+		else if (words[0] == "broadcast") {
+			string broadcast;
+			for (int j = i + 1; j < lines.size(); j++) {
+				broadcast += lines[j];
+				if (j < lines.size() - 1) {
+					broadcast += "\n";
+				}
+			}
+
+			string rebroadcast = "pnp\nbroadcast\n" + broadcast;
+			node->handleMessage(rebroadcast);
+
+			break;
 		}
 	}
 }
@@ -487,6 +524,23 @@ void Node::handleMessage(string message) {
 			}
 
 			break;
+		}
+		else if (words[0] == "key") {
+			if (words[1] == "share") {
+				int key_id = stoi(words[2]);
+
+				string key_pem;
+				for (int j = i + 1; j < lines.size(); j++) {
+					key_pem += lines[j];
+					if (j < lines.size() - 1) {
+						key_pem += "\n";
+					}
+				}
+
+				Storage::setKey(key_id, key_pem);
+
+				break;
+			}
 		}
 	}
 }
@@ -622,7 +676,7 @@ void RootNode::handleMessage(shared_ptr<Connection> connection, string message) 
 
 void RootNode::handleMessage(RelaySession relay_session, shared_ptr<Connection> connection, string message) {
 	string relay_response = "pnp\nrelay response " + to_string(relay_session.session) + "\n";
-	
+
 	vector<string> lines;
 	istringstream stream(message);
 	string temp;
@@ -641,6 +695,7 @@ void RootNode::handleMessage(RelaySession relay_session, shared_ptr<Connection> 
 		if (words[0] == "dht") {
 			if (words[1] == "request") {
 				string response = "pnp\n" + dht.toString();
+				response = Encryption::encryptAES(response, relay_session.key);
 				connection->writeData(relay_response + response);
 			}
 			else if (words[1] == "connect") {
@@ -650,6 +705,7 @@ void RootNode::handleMessage(RelaySession relay_session, shared_ptr<Connection> 
 
 				if (dht_connection->a->id == -1 || dht_connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
+					response = Encryption::encryptAES(response, relay_session.key);
 					connection->writeData(relay_response + response);
 
 					continue;
@@ -658,6 +714,7 @@ void RootNode::handleMessage(RelaySession relay_session, shared_ptr<Connection> 
 				if (dht.addConnection(dht_connection)) changedDHT();
 
 				string response = "pnp\nsuccess";
+				response = Encryption::encryptAES(response, relay_session.key);
 				connection->writeData(relay_response + response);
 			}
 			else if (words[1] == "disconnect") {
@@ -667,6 +724,7 @@ void RootNode::handleMessage(RelaySession relay_session, shared_ptr<Connection> 
 
 				if (dht_connection->a->id == -1 || dht_connection->b->id == -1) {
 					string response = "pnp\nunsuccess";
+					response = Encryption::encryptAES(response, relay_session.key);
 					connection->writeData(relay_response + response);
 
 					continue;
@@ -675,6 +733,7 @@ void RootNode::handleMessage(RelaySession relay_session, shared_ptr<Connection> 
 				if (dht.deleteConnection(dht_connection)) changedDHT();
 
 				string response = "pnp\nsuccess";
+				response = Encryption::encryptAES(response, relay_session.key);
 				connection->writeData(relay_response + response);
 			}
 			else if (words[1] == "leave") {

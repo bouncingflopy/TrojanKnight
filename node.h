@@ -9,6 +9,7 @@
 #include "networksettings.h"
 #include "dht.h"
 #include "encryption.h"
+#include "storage.h"
 
 class Connection;
 class OpenConnection;
@@ -49,6 +50,8 @@ public:
 	mutex board_mutex;
 	shared_ptr<RSA> public_key;
 	shared_ptr<RSA> private_key;
+	string name;
+	bool used_saved_name = false;
 
 	Node();
 	string getIP();
@@ -74,7 +77,7 @@ public:
 	void relay(int target_id, string payload);
 	void disconnect(int target_id);
 	void copyConnections(vector<shared_ptr<Connection>>& copy);
-	void changeName(string name);
+	void changeName(string new_name);
 	void sendInvite(int target_id);
 	void cancelInvite();
 	void acceptInvite();
@@ -83,6 +86,7 @@ public:
 	shared_ptr<Connection> getConnectionToNode(int target_id);
 	void createGame(int game);
 	void createKeys();
+	shared_ptr<RSA> retrieveKey(int key_id);
 };
 
 struct RelaySession {
@@ -90,8 +94,10 @@ struct RelaySession {
 	int from;
 	int session;
 	time_point creation;
+	string key;
 
 	RelaySession(int to, int from, int session);
+	RelaySession(int to, int from, int session, string k);
 };
 
 struct ChessInvite {
@@ -135,8 +141,6 @@ v	dht rename 1 username
 v	punchhole request 0 1
 v	punchhole fail 0 1
 
-	key query 1
-
 */
 
 /*
@@ -163,9 +167,16 @@ v	chess accept [game] 1
 v	chess reject [game] 1
 v	chess start [game] 1
 
-	key share 1
-		...
-	key query 1
+v	key share 1
+v		...
+v	key query 1
+
+*/
+
+/*
+
+epnpr
+epnpa
 
 */
 

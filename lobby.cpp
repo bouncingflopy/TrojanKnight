@@ -85,7 +85,7 @@ void Lobby::draw(sf::RenderWindow& window) {
 
 // debug
 #include <random>
-string generateRandomString(int length) {random_device rd;mt19937 gen(rd());uniform_int_distribution<> disUppercase('A', 'Z');uniform_int_distribution<> disLowercase('a', 'z');string randomString;randomString.reserve(length);for (int i = 0; i < length; ++i) {if (std::uniform_int_distribution<>{0, 1}(gen) == 0) {randomString.push_back(static_cast<char>(disUppercase(gen)));}else {randomString.push_back(static_cast<char>(disLowercase(gen)));}}return randomString;}
+string generateRandomString(int length) {random_device rd;mt19937 gen(rd());uniform_int_distribution<> disUppercase('A', 'Z');uniform_int_distribution<> disLowercase('a', 'z');string randomString;randomString.reserve(length);for (int i = 0; i < length; ++i) {if (uniform_int_distribution<>{0, 1}(gen) == 0) {randomString.push_back(static_cast<char>(disUppercase(gen)));}else {randomString.push_back(static_cast<char>(disLowercase(gen)));}}return randomString;}
 
 void Lobby::update() {
 	if (!(node->dht == dht)) {
@@ -140,6 +140,11 @@ void Lobby::update() {
 	}
 
 	if (node->chess_connection) running = false;
+
+	if (input_name->name != node->name) {
+		input_name->name = node->name;
+		input_name->unfocus();
+	}
 }
 
 void Lobby::applyFilter(string expression) {

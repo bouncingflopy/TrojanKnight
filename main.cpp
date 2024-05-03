@@ -5,6 +5,7 @@
 #include "board.h"
 #include "lobby.h"
 #include "launcher.h"
+#include "storage.h"
 #include "dhtdisplay.h" // only for displaying dht
 
 void resize(sf::RenderWindow& window) {
@@ -103,6 +104,8 @@ void boardLoop(sf::RenderWindow& window, shared_ptr<Board>& board, bool& press) 
 }
 
 int main() {
+	Storage::initialize();
+
 	Node* node = new Node();
 
 	thread dht_display_thread([node]() {
