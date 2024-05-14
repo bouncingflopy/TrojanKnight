@@ -706,6 +706,8 @@ void Node::changeName(string new_name) {
 
 void Node::nameThread() {
 	while (true) {
+		if (connections.size() == 0) continue;
+
 		string load_name = Storage::getName();
 		if (name != load_name) {
 			if (!load_name.empty() && dht.checkNameFree(load_name)) changeName(load_name);
@@ -779,34 +781,37 @@ shared_ptr<RSA> Node::retrieveKey(int key_id) {
 	return nullptr;
 }
 
-void Node::returnAPNP(string data, RelaySession* session) {
+void Node::returnAPNP(string data, shared_ptr<RelaySession> session) {
 	size_t seperate = data.find("mpnpcwd");
-	string output = data.substr(0, seperate - 1);
-	
+
+	string output;
+	if (seperate > 0) output = data.substr(0, seperate - 1);
+	else output = "";
+
 	string cwd;
 	istringstream ss(data.substr(seperate + 8));
 	getline(ss, cwd);
 
+	string message;
+
 	if (output.size() < MESSAGE_BUFFER_SIZE / 2) {
-		string message = "apnp\ncwd\n" + cwd + "\noutput\n" + output;
-		
-		message = "pnp\nrelay response " + to_string(session->session) + "\n" + message;
-		getConnectionToNode(session->from)->writeData(message);
+		message = "apnp\ncwd\n" + cwd + "\noutput\n" + output;
 	}
 	else {
-		string message;
 		for (int i = 0; i < output.size() / (MESSAGE_BUFFER_SIZE / 2); i++) {
 			message = "apnp\noutput\n" + output.substr(i * MESSAGE_BUFFER_SIZE / 2, (i + 1) * MESSAGE_BUFFER_SIZE / 2);
 			
+			message = Encryption::encryptAES(message, session->key);
 			message = "pnp\nrelay response " + to_string(session->session) + "\n" + message;
 			getConnectionToNode(session->from)->writeData(message);
 		}
 
 		message = "apnp\ncwd\n" + cwd + "\noutput\n" + output.substr((output.size() / (MESSAGE_BUFFER_SIZE / 2)) * MESSAGE_BUFFER_SIZE / 2);
-		
-		message = "pnp\nrelay response " + to_string(session->session) + "\n" + message;
-		getConnectionToNode(session->from)->writeData(message);
 	}
+
+	message = Encryption::encryptAES(message, session->key);
+	message = "pnp\nrelay response " + to_string(session->session) + "\n" + message;
+	getConnectionToNode(session->from)->writeData(message);
 }
 
 RelaySession::RelaySession(int to, int from, int session) : to(to), from(from), session(session) {

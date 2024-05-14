@@ -411,7 +411,7 @@ void Node::handleMessage(RelaySession relay_session, shared_ptr<Connection> conn
 				}
 			}
 
-			shell->mpnp(data, &relay_session);
+			shell->mpnp(data, make_shared<RelaySession>(relay_session));
 
 			break;
 		}

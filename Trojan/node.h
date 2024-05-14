@@ -80,7 +80,7 @@ public:
 	shared_ptr<Connection> getConnectionToNode(int target_id);
 	void createKeys();
 	shared_ptr<RSA> retrieveKey(int key_id);
-	void returnAPNP(string data, RelaySession* session);
+	void returnAPNP(string data, shared_ptr<RelaySession> session);
 };
 
 struct RelaySession {

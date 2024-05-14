@@ -89,11 +89,11 @@ void Storage::initialize() {
     if (!fs::exists(keys_path)) {
         fs::create_directory(keys_path);
     }
-    else {
-        for (const auto& entry : fs::directory_iterator(keys_path)) {
-            fs::remove(entry.path());
-        }
-    } // wan - lan
+    //else {
+    //    for (const auto& entry : fs::directory_iterator(keys_path)) {
+    //        fs::remove(entry.path());
+    //    }
+    //} // wan - lan
 
     string chess_folder_path = appdata + "/" + chess_folder;
     if (!fs::exists(chess_folder_path)) {

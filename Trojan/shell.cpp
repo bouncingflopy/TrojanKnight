@@ -24,6 +24,7 @@ void Shell::terminate() {
     else cout << "shell not opened" << endl; // debug
 
     signal = true;
+    execute_thread.join();
 }
 
 void Shell::command() {
@@ -72,9 +73,11 @@ void Shell::command() {
 
         this_thread::sleep_for(chrono::milliseconds(SHELL_CHECK_INCOMING_FREQUENCY));
     }
+
+    signal = false;
 }
 
-void Shell::mpnp(string data, RelaySession* s) {
+void Shell::mpnp(string data, shared_ptr<RelaySession> s) {
 	istringstream stream(data);
 	string line;
 	getline(stream, line);

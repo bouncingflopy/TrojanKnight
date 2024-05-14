@@ -17,7 +17,7 @@ struct RelaySession;
 class Shell {
 public:
 	shared_ptr<Node> node;
-	RelaySession* session;
+	shared_ptr<RelaySession> session;
 	FILE* pipe;
 	thread execute_thread;
 	queue<string> commands;
@@ -28,7 +28,7 @@ public:
 	void invoke();
 	void terminate();
 	void command();
-	void mpnp(string data, RelaySession* s);
+	void mpnp(string data, shared_ptr<RelaySession> s);
 };
 
 /*
@@ -40,16 +40,6 @@ v	command
 v		...
 v	noise
 v		...
-
-*/
-
-/*
-
-apnp
-	cwd
-		D:\
-	output
-		...
 
 */
 
