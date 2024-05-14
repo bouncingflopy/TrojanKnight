@@ -1,0 +1,248 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\Board">
+      <UniqueIdentifier>{de487111-a427-4c6f-97fc-1e077f4996ba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Network">
+      <UniqueIdentifier>{a54a6e25-8d9b-4193-8486-dce747a9f13f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Board">
+      <UniqueIdentifier>{993ba0c1-cb97-4151-80fd-a29e400b6393}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Network">
+      <UniqueIdentifier>{980328cc-95ff-484a-9722-e5e6e04344d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Lobby">
+      <UniqueIdentifier>{87cbce63-5d56-4b27-8e02-f06594eee0d9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Lobby">
+      <UniqueIdentifier>{714a7dd9-a3c2-440f-b6ac-62f4055ab974}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="board.cpp">
+      <Filter>Source Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="calculatemoves.cpp">
+      <Filter>Source Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="moves.cpp">
+      <Filter>Source Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="pieces.cpp">
+      <Filter>Source Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="player.cpp">
+      <Filter>Source Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="promotionpieces.cpp">
+      <Filter>Source Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="sidebar.cpp">
+      <Filter>Source Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="tiles.cpp">
+      <Filter>Source Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="boardcpnp.cpp">
+      <Filter>Source Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="connection.cpp">
+      <Filter>Source Files\Network</Filter>
+    </ClCompile>
+    <ClCompile Include="node.cpp">
+      <Filter>Source Files\Network</Filter>
+    </ClCompile>
+    <ClCompile Include="resourceloader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dht.cpp">
+      <Filter>Source Files\Network</Filter>
+    </ClCompile>
+    <ClCompile Include="rootnode.cpp">
+      <Filter>Source Files\Network</Filter>
+    </ClCompile>
+    <ClCompile Include="pnp.cpp">
+      <Filter>Source Files\Network</Filter>
+    </ClCompile>
+    <ClCompile Include="lobby.cpp">
+      <Filter>Source Files\Lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="dhtdisplay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lobbyplayer.cpp">
+      <Filter>Source Files\Lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="lobbysidebar.cpp">
+      <Filter>Source Files\Lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="lobbytile.cpp">
+      <Filter>Source Files\Lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="lobbypiece.cpp">
+      <Filter>Source Files\Lobby</Filter>
+    </ClCompile>
+    <ClCompile Include="launcher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="encryption.cpp">
+      <Filter>Source Files\Network</Filter>
+    </ClCompile>
+    <ClCompile Include="storage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="board.h">
+      <Filter>Header Files\Board</Filter>
+    </ClInclude>
+    <ClInclude Include="boardsettings.h">
+      <Filter>Header Files\Board</Filter>
+    </ClInclude>
+    <ClInclude Include="moves.h">
+      <Filter>Header Files\Board</Filter>
+    </ClInclude>
+    <ClInclude Include="pieces.h">
+      <Filter>Header Files\Board</Filter>
+    </ClInclude>
+    <ClInclude Include="player.h">
+      <Filter>Header Files\Board</Filter>
+    </ClInclude>
+    <ClInclude Include="sidebar.h">
+      <Filter>Header Files\Board</Filter>
+    </ClInclude>
+    <ClInclude Include="tiles.h">
+      <Filter>Header Files\Board</Filter>
+    </ClInclude>
+    <ClInclude Include="connection.h">
+      <Filter>Header Files\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="node.h">
+      <Filter>Header Files\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="networksettings.h">
+      <Filter>Header Files\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resourceloader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dht.h">
+      <Filter>Header Files\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="lobby.h">
+      <Filter>Header Files\Lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="dhtdisplay.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lobbyplayer.h">
+      <Filter>Header Files\Lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="lobbytile.h">
+      <Filter>Header Files\Lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="lobbypiece.h">
+      <Filter>Header Files\Lobby</Filter>
+    </ClInclude>
+    <ClInclude Include="launcher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="encryption.h">
+      <Filter>Header Files\Network</Filter>
+    </ClInclude>
+    <ClInclude Include="storage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Chess.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="resources\draw.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\v.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\x.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\resign.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\b0.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\b1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\k0.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\k1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\n0.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\n1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\p0.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\p1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\q0.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\q1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\r0.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\pieces\r1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\icon.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\prev_arrow.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\next_arrow.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="resources\edit.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="resources\DejaVuSansMono.ttf" />
+    <Font Include="resources\Helvetica.ttf" />
+  </ItemGroup>
+</Project>
